@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "k8s:configmap:notes/notes-config",
+      "name": "notes-config",
+      "type": "other",
+      "group": "group:namespace:notes",
+      "source": {
+        "file": "app.yaml",
+        "line": 6
+      },
+      "metadata": {},
+      "status": "unchanged"
+    },
+    {
+      "id": "k8s:deployment:notes/web",
+      "name": "web",
+      "type": "compute",
+      "group": "group:namespace:notes",
+      "source": {
+        "file": "app.yaml",
+        "line": 22
+      },
+      "metadata": {
+        "images": "ghcr.io/example/notes:1.4.0"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "k8s:ingress:notes/web",
+      "name": "web",
+      "type": "ingress",
+      "group": "group:namespace:notes",
+      "source": {
+        "file": "app.yaml",
+        "line": 59
+      },
+      "metadata": {
+        "hosts": "notes.example.com"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "k8s:secret:notes/notes-secret",
+      "name": "notes-secret",
+      "type": "other",
+      "group": "group:namespace:notes",
+      "source": {
+        "file": "app.yaml",
+        "line": 14
+      },
+      "metadata": {},
+      "status": "unchanged"
+    },
+    {
+      "id": "k8s:service:notes/web",
+      "name": "web",
+      "type": "loadbalancer",
+      "group": "group:namespace:notes",
+      "source": {
+        "file": "app.yaml",
+        "line": 45
+      },
+      "metadata": {
+        "ports": "http:80/TCP",
+        "selector": "app=web",
+        "type": "LoadBalancer"
+      },
+      "status": "unchanged"
+    }
+  ],
+  "edges": [
+    {
+      "from": "k8s:deployment:notes/web",
+      "to": "k8s:configmap:notes/notes-config",
+      "kind": "reference",
+      "status": "unchanged"
+    },
+    {
+      "from": "k8s:deployment:notes/web",
+      "to": "k8s:secret:notes/notes-secret",
+      "kind": "reference",
+      "status": "unchanged"
+    },
+    {
+      "from": "k8s:ingress:notes/web",
+      "to": "k8s:service:notes/web",
+      "kind": "routes_to",
+      "status": "unchanged"
+    },
+    {
+      "from": "k8s:service:notes/web",
+      "to": "k8s:deployment:notes/web",
+      "kind": "routes_to",
+      "status": "unchanged"
+    }
+  ],
+  "groups": [
+    {
+      "id": "group:namespace:default",
+      "name": "default",
+      "kind": "namespace",
+      "status": "unchanged"
+    },
+    {
+      "id": "group:namespace:notes",
+      "name": "notes",
+      "kind": "namespace",
+      "status": "unchanged"
+    }
+  ],
+  "summary": {
+    "nodes": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 5
+    },
+    "edges": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 4
+    },
+    "text": "+0 added, -0 removed, ~0 changed"
+  }
+}

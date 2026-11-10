@@ -1,0 +1,16 @@
+flowchart LR
+  %% +0 added, -0 removed, ~0 changed
+  subgraph g_group_module_root["root<br/>module"]
+    n_tf_aws_db_instance_main[("main<br/>database")]
+    n_tf_aws_instance_worker["worker<br/>compute"]
+    n_tf_aws_lb_public{{"public<br/>loadbalancer"}}
+    n_tf_aws_s3_bucket_uploads[("uploads<br/>storage")]
+  end
+  classDef unchanged fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  classDef added fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef removed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef changed fill:#fef9c3,stroke:#ca8a04,color:#713f12
+  class n_tf_aws_db_instance_main unchanged
+  class n_tf_aws_instance_worker unchanged
+  class n_tf_aws_lb_public unchanged
+  class n_tf_aws_s3_bucket_uploads unchanged

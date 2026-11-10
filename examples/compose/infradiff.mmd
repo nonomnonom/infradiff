@@ -1,0 +1,36 @@
+flowchart LR
+  %% +0 added, -0 removed, ~0 changed
+  subgraph g_group_project_notes["notes<br/>project"]
+    n_compose_network_default(("default<br/>network"))
+    n_compose_service_api["api<br/>service"]
+    n_compose_service_cache(["cache<br/>cache"])
+    n_compose_service_db[("db<br/>database")]
+    n_compose_service_web["web<br/>service"]
+    n_compose_volume_db_data[("db-data<br/>storage")]
+  end
+  n_compose_service_api -->|network| n_compose_network_default
+  n_compose_service_api -->|depends_on| n_compose_service_cache
+  n_compose_service_api -->|depends_on| n_compose_service_db
+  n_compose_service_cache -->|network| n_compose_network_default
+  n_compose_service_db -->|network| n_compose_network_default
+  n_compose_service_db -->|volume| n_compose_volume_db_data
+  n_compose_service_web -->|port| n_compose_network_default
+  n_compose_service_web -->|depends_on| n_compose_service_api
+  classDef unchanged fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  classDef added fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef removed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef changed fill:#fef9c3,stroke:#ca8a04,color:#713f12
+  class n_compose_network_default unchanged
+  class n_compose_service_api unchanged
+  class n_compose_service_cache unchanged
+  class n_compose_service_db unchanged
+  class n_compose_service_web unchanged
+  class n_compose_volume_db_data unchanged
+  linkStyle 0 stroke:#94a3b8,stroke-width:1px
+  linkStyle 1 stroke:#94a3b8,stroke-width:1px
+  linkStyle 2 stroke:#94a3b8,stroke-width:1px
+  linkStyle 3 stroke:#94a3b8,stroke-width:1px
+  linkStyle 4 stroke:#94a3b8,stroke-width:1px
+  linkStyle 5 stroke:#94a3b8,stroke-width:1px
+  linkStyle 6 stroke:#94a3b8,stroke-width:1px
+  linkStyle 7 stroke:#94a3b8,stroke-width:1px

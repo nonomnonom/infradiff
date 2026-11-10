@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "compose:network:default",
+      "name": "default",
+      "type": "network",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 4
+      },
+      "metadata": {
+        "implicit": "compose default network"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:api",
+      "name": "api",
+      "type": "service",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 13
+      },
+      "metadata": {
+        "environment": "CACHE_URL, DATABASE_URL",
+        "image": "ghcr.io/example/notes-api:1.4.0"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:cache",
+      "name": "cache",
+      "type": "cache",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 27
+      },
+      "metadata": {
+        "image": "redis:7.4"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:db",
+      "name": "db",
+      "type": "database",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 22
+      },
+      "metadata": {
+        "image": "postgres:16.4"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:web",
+      "name": "web",
+      "type": "service",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 4
+      },
+      "metadata": {
+        "environment": "APP_SECRET",
+        "image": "ghcr.io/example/notes:1.4.0",
+        "ports": "8080:8080"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:volume:db-data",
+      "name": "db-data",
+      "type": "storage",
+      "group": "group:project:notes",
+      "source": {
+        "file": "compose.yaml",
+        "line": 31
+      },
+      "metadata": {},
+      "status": "unchanged"
+    }
+  ],
+  "edges": [
+    {
+      "from": "compose:service:api",
+      "to": "compose:network:default",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:api",
+      "to": "compose:service:cache",
+      "kind": "depends_on",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:api",
+      "to": "compose:service:db",
+      "kind": "depends_on",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:cache",
+      "to": "compose:network:default",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:db",
+      "to": "compose:network:default",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:db",
+      "to": "compose:volume:db-data",
+      "kind": "volume",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:web",
+      "to": "compose:network:default",
+      "kind": "port",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:web",
+      "to": "compose:service:api",
+      "kind": "depends_on",
+      "status": "unchanged"
+    }
+  ],
+  "groups": [
+    {
+      "id": "group:project:notes",
+      "name": "notes",
+      "kind": "project",
+      "status": "unchanged"
+    }
+  ],
+  "summary": {
+    "nodes": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 6
+    },
+    "edges": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 8
+    },
+    "text": "+0 added, -0 removed, ~0 changed"
+  }
+}

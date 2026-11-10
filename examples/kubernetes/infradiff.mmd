@@ -1,0 +1,26 @@
+flowchart LR
+  %% +0 added, -0 removed, ~0 changed
+  subgraph g_group_namespace_notes["notes<br/>namespace"]
+    n_k8s_configmap_notes_notes_config["notes-config<br/>other"]
+    n_k8s_deployment_notes_web["web<br/>compute"]
+    n_k8s_ingress_notes_web{{"web<br/>ingress"}}
+    n_k8s_secret_notes_notes_secret["notes-secret<br/>other"]
+    n_k8s_service_notes_web{{"web<br/>loadbalancer"}}
+  end
+  n_k8s_deployment_notes_web -->|reference| n_k8s_configmap_notes_notes_config
+  n_k8s_deployment_notes_web -->|reference| n_k8s_secret_notes_notes_secret
+  n_k8s_ingress_notes_web -->|routes_to| n_k8s_service_notes_web
+  n_k8s_service_notes_web -->|routes_to| n_k8s_deployment_notes_web
+  classDef unchanged fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  classDef added fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef removed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef changed fill:#fef9c3,stroke:#ca8a04,color:#713f12
+  class n_k8s_configmap_notes_notes_config unchanged
+  class n_k8s_deployment_notes_web unchanged
+  class n_k8s_ingress_notes_web unchanged
+  class n_k8s_secret_notes_notes_secret unchanged
+  class n_k8s_service_notes_web unchanged
+  linkStyle 0 stroke:#94a3b8,stroke-width:1px
+  linkStyle 1 stroke:#94a3b8,stroke-width:1px
+  linkStyle 2 stroke:#94a3b8,stroke-width:1px
+  linkStyle 3 stroke:#94a3b8,stroke-width:1px

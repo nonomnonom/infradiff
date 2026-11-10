@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "tf:aws_db_instance.main",
+      "name": "main",
+      "type": "database",
+      "group": "group:module:root",
+      "source": {
+        "file": "main.tf",
+        "line": 1
+      },
+      "metadata": {
+        "allocated_storage": "20",
+        "engine": "postgres",
+        "instance_class": "db.t3.micro",
+        "publicly_accessible": "false",
+        "resource_type": "aws_db_instance"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "tf:aws_instance.worker",
+      "name": "worker",
+      "type": "compute",
+      "group": "group:module:root",
+      "source": {
+        "file": "main.tf",
+        "line": 18
+      },
+      "metadata": {
+        "ami": "ami-0123456789abcdef0",
+        "resource_type": "aws_instance"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "tf:aws_lb.public",
+      "name": "public",
+      "type": "loadbalancer",
+      "group": "group:module:root",
+      "source": {
+        "file": "main.tf",
+        "line": 12
+      },
+      "metadata": {
+        "internal": "false",
+        "load_balancer_type": "application",
+        "resource_type": "aws_lb"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "tf:aws_s3_bucket.uploads",
+      "name": "uploads",
+      "type": "storage",
+      "group": "group:module:root",
+      "source": {
+        "file": "main.tf",
+        "line": 8
+      },
+      "metadata": {
+        "bucket": "example-notes-uploads",
+        "resource_type": "aws_s3_bucket"
+      },
+      "status": "unchanged"
+    }
+  ],
+  "edges": null,
+  "groups": [
+    {
+      "id": "group:module:root",
+      "name": "root",
+      "kind": "module",
+      "status": "unchanged"
+    }
+  ],
+  "summary": {
+    "nodes": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 4
+    },
+    "edges": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 0
+    },
+    "text": "+0 added, -0 removed, ~0 changed"
+  }
+}

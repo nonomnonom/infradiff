@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: notes
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notes-config
+  namespace: notes
+data:
+  LOG_LEVEL: info
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notes-secret
+  namespace: notes
+stringData:
+  password: change-me
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: notes
+spec:
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/example/notes:1.4.0
+          envFrom:
+            - configMapRef:
+                name: notes-config
+            - secretRef:
+                name: notes-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: notes
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: notes
+spec:
+  rules:
+    - host: notes.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
