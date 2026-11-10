@@ -46,3 +46,25 @@ jobs:
           cache: true
       - name: golangci-lint
         run: make lint
+
+  vscode:
+    name: vscode extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+      - name: install
+        run: npm ci
+      - name: typecheck
+        run: npm run typecheck
+      - name: build
+        run: npm run build
+      - name: package
+        run: npx vsce package --no-dependencies

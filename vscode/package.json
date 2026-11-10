@@ -1,0 +1,85 @@
+{
+  "name": "infradiff",
+  "displayName": "infradiff",
+  "description": "Preview and diff Docker Compose, Terraform, and Kubernetes infrastructure as a diagram",
+  "version": "0.0.0",
+  "publisher": "infradiff",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.145.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "infrastructure",
+    "docker",
+    "compose",
+    "terraform",
+    "kubernetes",
+    "mermaid"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/infradiff/infradiff"
+  },
+  "activationEvents": [
+    "onCommand:infradiff.preview",
+    "onCommand:infradiff.diff"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "infradiff.preview",
+        "title": "infradiff: Preview Infrastructure"
+      },
+      {
+        "command": "infradiff.diff",
+        "title": "infradiff: Diff Infrastructure Against Git Revision"
+      }
+    ],
+    "configuration": {
+      "title": "infradiff",
+      "properties": {
+        "infradiff.executable": {
+          "type": "string",
+          "default": "infradiff",
+          "description": "Path to the infradiff executable. Use an absolute path when it is not on PATH."
+        }
+      }
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "infradiff.preview",
+          "when": "explorerResourceIsFolder || resourceExtname == .yaml || resourceExtname == .yml || resourceExtname == .tf || resourceExtname == .json",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "infradiff.preview",
+          "when": "resourceExtname == .yaml || resourceExtname == .yml || resourceExtname == .tf || resourceExtname == .json",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
+    "package": "npm run build && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/vscode": "1.145.0",
+    "@vscode/vsce": "4.1.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}
