@@ -87,13 +87,22 @@ func (w Workspace) resolve(input string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolving %q: %w", input, err)
 	}
+	if !within(w.Root, absolute) {
+		return "", fmt.Errorf("path %q is outside the workspace root %s", input, w.Root)
+	}
 	resolved, err := filepath.EvalSymlinks(absolute)
 	if err != nil {
 		return "", fmt.Errorf("path %q does not exist inside the workspace: %w", input, err)
 	}
-	rel, err := filepath.Rel(w.Root, resolved)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	// Check again after resolving links so a link inside the workspace cannot
+	// point at a file outside it.
+	if !within(w.Root, resolved) {
 		return "", fmt.Errorf("path %q is outside the workspace root %s", input, w.Root)
 	}
 	return resolved, nil
+}
+
+func within(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

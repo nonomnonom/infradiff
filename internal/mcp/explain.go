@@ -45,8 +45,12 @@ type Risk struct {
 	Message  string `json:"message"`
 }
 
+type explainArgs struct {
+	Path string `json:"path" jsonschema:"file or directory to parse, relative to the MCP workspace root"`
+}
+
 // ExplainGraph parses one input and returns a structured summary.
-func (w Workspace) ExplainGraph(_ context.Context, _ *sdk.CallToolRequest, args generateArgs) (*sdk.CallToolResult, Explain, error) {
+func (w Workspace) ExplainGraph(_ context.Context, _ *sdk.CallToolRequest, args explainArgs) (*sdk.CallToolResult, Explain, error) {
 	path, err := w.resolve(args.Path)
 	if err != nil {
 		return nil, Explain{}, err
