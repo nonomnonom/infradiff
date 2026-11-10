@@ -37,6 +37,6 @@ func newRootCmd() *cobra.Command {
 			DisableDefaultCmd: true,
 		},
 	}
-	cmd.AddCommand(newGenerateCmd(), newDiffCmd(), newVersionCmd())
+	cmd.AddCommand(newGenerateCmd(), newDiffCmd(), newMCPCmd(), newVersionCmd())
 	return cmd
 }

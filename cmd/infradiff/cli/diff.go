@@ -64,7 +64,7 @@ func newDiffCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&format, "format", "f", "mermaid", "output format: mermaid or json")
+	cmd.Flags().StringVarP(&format, "format", "f", "mermaid", "output format: mermaid, json, or html")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "write output to this file instead of stdout")
 	cmd.Flags().StringVar(&gitRef, "git", "", "compare the working tree against this git revision")
 	cmd.Flags().BoolVar(&failOnChange, "fail-on-change", false, "exit with status 1 when anything changed")

@@ -187,7 +187,8 @@ func TestParseFormat(t *testing.T) {
 	}{
 		{"mermaid", FormatMermaid, ""},
 		{"JSON", FormatJSON, ""},
-		{" html ", "", "unknown format"},
+		{"html", FormatHTML, ""},
+		{" svg ", "", "unknown format"},
 		{"", "", "unknown format"},
 	}
 	for _, tt := range tests {
@@ -223,6 +224,61 @@ func TestMermaidEscapesLabels(t *testing.T) {
 	}
 	if !strings.Contains(out, "quote' and (tag)") {
 		t.Fatalf("escaped label is missing:\n%s", out)
+	}
+}
+
+func TestHTML(t *testing.T) {
+	data, err := HTML(loadCompose(t))
+	if err != nil {
+		t.Fatalf("HTML: %v", err)
+	}
+	if len(data) < 5_000_000 {
+		t.Fatalf("HTML is only %d bytes; Mermaid should be embedded", len(data))
+	}
+	text := string(data)
+	for _, want := range []string{
+		"<!doctype html>",
+		`class="mermaid"`,
+		"0 added, -0 removed, ~0 changed",
+		"Mermaid " + mermaidVersion + " license",
+		"The MIT License",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("HTML is missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"cdn.jsdelivr", "unpkg.com", `<script src="http`} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("HTML references a remote asset: %q", forbidden)
+		}
+	}
+
+	again, err := HTML(loadCompose(t))
+	if err != nil {
+		t.Fatalf("HTML again: %v", err)
+	}
+	if !bytes.Equal(data, again) {
+		t.Fatal("HTML output is not deterministic")
+	}
+}
+
+func TestHTMLEscapesUntrustedLabels(t *testing.T) {
+	g := model.New()
+	g.Nodes = append(g.Nodes, model.Node{
+		ID:       "x",
+		Name:     `<script>alert(1)</script>`,
+		Type:     model.NodeService,
+		Source:   model.Source{File: "x.yaml", Line: 1},
+		Metadata: map[string]string{},
+		Status:   model.StatusUnchanged,
+	})
+
+	data, err := HTML(g)
+	if err != nil {
+		t.Fatalf("HTML: %v", err)
+	}
+	if strings.Contains(string(data), "<script>alert(1)</script>") {
+		t.Fatal("HTML contains an unescaped script from a node name")
 	}
 }
 

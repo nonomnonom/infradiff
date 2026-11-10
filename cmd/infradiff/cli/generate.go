@@ -3,49 +3,90 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/infradiff/infradiff/internal/parser"
 	"github.com/infradiff/infradiff/internal/render"
+	"github.com/infradiff/infradiff/internal/watch"
 	"github.com/spf13/cobra"
 )
 
 func newGenerateCmd() *cobra.Command {
 	var format string
 	var output string
+	var watchMode bool
 
 	cmd := &cobra.Command{
 		Use:   "generate <path>",
 		Short: "Render an infrastructure diagram",
 		Long: "Read Docker Compose, Terraform, or Kubernetes files at <path> and\n" +
-			"render the resulting architecture as a Mermaid diagram or JSON.",
+			"render the resulting architecture as Mermaid, JSON, or a self-contained\n" +
+			"HTML page. With --watch, regenerate whenever a source file changes.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outFormat, err := render.ParseFormat(format)
 			if err != nil {
 				return err
 			}
-			graph, err := parser.DefaultRegistry().ParsePath(args[0])
-			if err != nil {
+
+			renderOnce := func() error {
+				graph, err := parser.DefaultRegistry().ParsePath(args[0])
+				if err != nil {
+					return err
+				}
+				data, err := render.Render(graph, outFormat)
+				if err != nil {
+					return err
+				}
+				if output == "" {
+					_, err = cmd.OutOrStdout().Write(data)
+					return err
+				}
+				if err := writeFileAtomic(output, data); err != nil {
+					return fmt.Errorf("write %s: %w", output, err)
+				}
+				return nil
+			}
+
+			if err := renderOnce(); err != nil {
 				return err
 			}
-			data, err := render.Render(graph, outFormat)
-			if err != nil {
-				return err
+			if !watchMode {
+				return nil
 			}
-			if output == "" {
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+
+			printLine(cmd.ErrOrStderr(), "watching "+args[0]+" (Ctrl+C to stop)")
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+			defer stop()
+
+			var ignoredOutput string
+			if output != "" {
+				ignoredOutput, _ = filepath.Abs(output)
 			}
-			if err := writeFileAtomic(output, data); err != nil {
-				return fmt.Errorf("write %s: %w", output, err)
-			}
-			return nil
+			return watch.Run(ctx, watch.Options{
+				Root:     args[0],
+				OnChange: renderOnce,
+				OnError: func(err error) {
+					printLine(cmd.ErrOrStderr(), "error: "+err.Error())
+				},
+				Ignore: func(path string) bool {
+					if ignoredOutput == "" {
+						return false
+					}
+					absPath, err := filepath.Abs(path)
+					if err != nil {
+						return false
+					}
+					return filepath.Clean(absPath) == filepath.Clean(ignoredOutput)
+				},
+			})
 		},
 	}
 
 	cmd.Flags().StringVarP(&format, "format", "f", "mermaid", "output format: mermaid, json, or html")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "write output to this file instead of stdout")
+	cmd.Flags().BoolVar(&watchMode, "watch", false, "regenerate whenever an input file changes")
 	return cmd
 }
 

@@ -68,7 +68,7 @@ func TestGenerateErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"invalid format", []string{"generate", composeFixture, "-f", "html"}, `unknown format "html"`},
+		{"invalid format", []string{"generate", composeFixture, "-f", "svg"}, `unknown format "svg"`},
 		{"missing path", []string{"generate"}, "accepts 1 arg"},
 		{"unknown path", []string{"generate", "does-not-exist"}, "cannot read"},
 	}
