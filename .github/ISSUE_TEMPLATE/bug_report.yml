@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a wrong graph, render, diff, or integration
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A minimal input file is the fastest way to reproduce a parser or renderer issue.
+  - type: input
+    id: version
+    attributes:
+      label: infradiff version
+      description: Output of `infradiff version`
+      placeholder: dev
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Docker Compose parser
+        - Terraform parser or plan JSON
+        - Kubernetes parser
+        - Mermaid renderer
+        - JSON renderer
+        - HTML renderer
+        - Diff engine
+        - MCP server
+        - GitHub Action
+        - VS Code extension
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or client
+      description: The exact command, MCP tool call, or extension action
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Minimal input
+      description: The smallest Compose, Terraform, or Kubernetes file that shows the problem
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error text or a description of the wrong output
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and architecture
+      placeholder: Windows 11 amd64, macOS 15 arm64, Ubuntu 24.04 amd64
+    validations:
+      required: true
