@@ -1,0 +1,65 @@
+name: infradiff
+description: Render or diff Docker Compose, Terraform, and Kubernetes infrastructure as a diagram
+author: infradiff
+branding:
+  icon: git-branch
+  color: purple
+
+inputs:
+  path:
+    description: File or directory to parse, relative to the repository root
+    required: false
+    default: .
+  base-ref:
+    description: Git revision to diff against; leave empty to generate the current graph
+    required: false
+    default: ""
+  format:
+    description: Output format (mermaid, json, or html)
+    required: false
+    default: mermaid
+  output:
+    description: Output file path; defaults to a file in the runner temp directory
+    required: false
+    default: ""
+  comment:
+    description: Comment the result on the pull request
+    required: false
+    default: "false"
+  fail-on-change:
+    description: Fail the step when the diff finds changes
+    required: false
+    default: "false"
+  github-token:
+    description: Token used to comment on the pull request
+    required: false
+    default: ${{ github.token }}
+  go-version:
+    description: Go version used to build infradiff
+    required: false
+    default: 1.27.x
+
+outputs:
+  output-path:
+    description: Absolute path of the generated diagram, diff, or HTML file
+    value: ${{ steps.run.outputs.output-path }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: false
+    - id: run
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_FAIL_ON_CHANGE: ${{ inputs.fail-on-change }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/github-action.sh"
