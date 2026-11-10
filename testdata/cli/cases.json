@@ -1,0 +1,38 @@
+[
+  {
+    "name": "version prints dev",
+    "args": ["version"],
+    "want_code": 0,
+    "want_stdout": "dev\n"
+  },
+  {
+    "name": "version rejects arguments",
+    "args": ["version", "extra"],
+    "want_code": 1,
+    "want_stderr": "unknown command"
+  },
+  {
+    "name": "no arguments prints help",
+    "args": [],
+    "want_code": 0,
+    "want_stdout_contains": ["Usage:", "version"]
+  },
+  {
+    "name": "help flag",
+    "args": ["--help"],
+    "want_code": 0,
+    "want_stdout_contains": ["Usage:"]
+  },
+  {
+    "name": "unknown command fails",
+    "args": ["frobnicate"],
+    "want_code": 1,
+    "want_stderr": "unknown command \"frobnicate\""
+  },
+  {
+    "name": "completion command is not installed",
+    "args": ["completion"],
+    "want_code": 1,
+    "want_stderr": "unknown command \"completion\""
+  }
+]

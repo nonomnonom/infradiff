@@ -1,0 +1,52 @@
+name: shop
+
+services:
+  proxy:
+    image: nginx:1.29
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    networks:
+      - frontend
+
+  web:
+    image: shop/web:latest
+    environment:
+      DATABASE_URL: postgres://shop:supersecret@db:5432/shop
+      SESSION_SECRET: change-me
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+
+  worker:
+    image: shop/worker:latest
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: supersecret
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  cache:
+    image: redis:7
+    networks:
+      - backend
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  dbdata:

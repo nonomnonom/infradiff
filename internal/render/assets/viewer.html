@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>infradiff diagram</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+h1 { font-size: 15px; margin: 0; letter-spacing: 0.02em; }
+#summary { margin: 0; font-variant-numeric: tabular-nums; color: #334155; font-size: 13px; }
+.legend { list-style: none; display: flex; gap: 12px; margin: 0; padding: 0; font-size: 12px; color: #475569; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid #94a3b8; }
+.swatch.added { background: #dcfce7; border-color: #16a34a; }
+.swatch.removed { background: #fee2e2; border-color: #dc2626; }
+.swatch.changed { background: #fef9c3; border-color: #ca8a04; }
+.swatch.unchanged { background: #f8fafc; border-color: #94a3b8; }
+button {
+  margin-left: auto;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button:hover { background: #f1f5f9; }
+button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+#viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+#viewport.dragging { cursor: grabbing; }
+#canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; padding: 24px; }
+footer {
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 6px 20px;
+  font-size: 11px;
+  color: #64748b;
+}
+footer details { display: inline-block; }
+pre.license { white-space: pre-wrap; max-height: 200px; overflow: auto; }
+@media (max-width: 640px) {
+  .legend { display: none; }
+  button { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>infradiff</h1>
+  <p id="summary">{{.Summary}}</p>
+  <ul class="legend" aria-label="Status legend">
+    <li><span class="swatch added"></span>added</li>
+    <li><span class="swatch removed"></span>removed</li>
+    <li><span class="swatch changed"></span>changed</li>
+    <li><span class="swatch unchanged"></span>unchanged</li>
+  </ul>
+  <button id="reset" type="button">Reset view</button>
+</header>
+<main id="viewport" aria-label="Infrastructure diagram">
+  <div id="canvas"><pre class="mermaid">{{.Diagram}}</pre></div>
+</main>
+<footer>
+  Offline diagram, no network access.
+  <details>
+    <summary>Mermaid {{.MermaidVersion}} license</summary>
+    <pre class="license">{{.License}}</pre>
+  </details>
+</footer>
+<script>{{.MermaidJS}}</script>
+<script>
+(function () {
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "base",
+    flowchart: { htmlLabels: true, curve: "basis" }
+  });
+
+  var viewport = document.getElementById("viewport");
+  var canvas = document.getElementById("canvas");
+  var scale = 1, x = 0, y = 0, dragging = false, lastX = 0, lastY = 0;
+
+  function apply() {
+    canvas.style.transform = "translate(" + x + "px, " + y + "px) scale(" + scale + ")";
+  }
+
+  function resetView() {
+    scale = 1;
+    x = 0;
+    y = 0;
+    apply();
+  }
+
+  viewport.addEventListener("wheel", function (event) {
+    event.preventDefault();
+    var factor = event.deltaY < 0 ? 1.1 : 0.9;
+    scale = Math.min(4, Math.max(0.2, scale * factor));
+    apply();
+  }, { passive: false });
+
+  viewport.addEventListener("pointerdown", function (event) {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    viewport.classList.add("dragging");
+    viewport.setPointerCapture(event.pointerId);
+  });
+
+  viewport.addEventListener("pointermove", function (event) {
+    if (!dragging) return;
+    x += event.clientX - lastX;
+    y += event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    apply();
+  });
+
+  function stopDragging() {
+    dragging = false;
+    viewport.classList.remove("dragging");
+  }
+
+  viewport.addEventListener("pointerup", stopDragging);
+  viewport.addEventListener("pointercancel", stopDragging);
+  document.getElementById("reset").addEventListener("click", resetView);
+
+  mermaid.run({ querySelector: ".mermaid" }).then(function () {
+    var svg = canvas.querySelector("svg");
+    if (svg) {
+      svg.removeAttribute("height");
+      svg.style.maxWidth = "none";
+    }
+  }).catch(function (error) {
+    document.getElementById("summary").textContent = "Diagram could not be rendered: " + error.message;
+  });
+})();
+</script>
+</body>
+</html>

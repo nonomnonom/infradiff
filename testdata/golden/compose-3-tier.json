@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "compose:network:backend",
+      "name": "backend",
+      "type": "network",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 49
+      },
+      "metadata": {},
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:network:frontend",
+      "name": "frontend",
+      "type": "network",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 48
+      },
+      "metadata": {},
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:cache",
+      "name": "cache",
+      "type": "cache",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 42
+      },
+      "metadata": {
+        "image": "redis:7"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:db",
+      "name": "db",
+      "type": "database",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 32
+      },
+      "metadata": {
+        "environment": "POSTGRES_PASSWORD, POSTGRES_USER",
+        "image": "postgres:16"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:proxy",
+      "name": "proxy",
+      "type": "loadbalancer",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 4
+      },
+      "metadata": {
+        "image": "nginx:1.29",
+        "ports": "80:80"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:web",
+      "name": "web",
+      "type": "service",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 13
+      },
+      "metadata": {
+        "environment": "DATABASE_URL, SESSION_SECRET",
+        "image": "shop/web:latest"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:worker",
+      "name": "worker",
+      "type": "service",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 25
+      },
+      "metadata": {
+        "image": "shop/worker:latest"
+      },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:volume:dbdata",
+      "name": "dbdata",
+      "type": "storage",
+      "group": "group:project:shop",
+      "source": {
+        "file": "compose.yaml",
+        "line": 52
+      },
+      "metadata": {},
+      "status": "unchanged"
+    }
+  ],
+  "edges": [
+    {
+      "from": "compose:service:cache",
+      "to": "compose:network:backend",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:db",
+      "to": "compose:network:backend",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:db",
+      "to": "compose:volume:dbdata",
+      "kind": "volume",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:proxy",
+      "to": "compose:network:frontend",
+      "kind": "port",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:proxy",
+      "to": "compose:service:web",
+      "kind": "depends_on",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:web",
+      "to": "compose:network:backend",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:web",
+      "to": "compose:network:frontend",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:web",
+      "to": "compose:service:db",
+      "kind": "depends_on",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:worker",
+      "to": "compose:network:backend",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:worker",
+      "to": "compose:service:db",
+      "kind": "depends_on",
+      "status": "unchanged"
+    }
+  ],
+  "groups": [
+    {
+      "id": "group:project:shop",
+      "name": "shop",
+      "kind": "project",
+      "status": "unchanged"
+    }
+  ],
+  "summary": {
+    "nodes": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 8
+    },
+    "edges": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "unchanged": 10
+    },
+    "text": "+0 added, -0 removed, ~0 changed"
+  }
+}

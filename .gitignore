@@ -1,0 +1,9 @@
+/bin/
+/.bin/
+/node_modules/
+/vscode/out/
+/vscode/dist/
+/vscode/*.vsix
+coverage.out
+.DS_Store
+Thumbs.db

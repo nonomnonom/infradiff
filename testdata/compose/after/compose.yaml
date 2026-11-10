@@ -1,0 +1,29 @@
+name: shop
+
+services:
+  api:
+    image: shop/api:2
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  db:
+    image: postgres:16
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  cache:
+    image: redis:7
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  dbdata:

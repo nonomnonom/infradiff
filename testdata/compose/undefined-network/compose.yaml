@@ -1,0 +1,5 @@
+services:
+  api:
+    image: shop/api:latest
+    networks:
+      - private

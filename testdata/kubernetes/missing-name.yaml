@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nameless
+  template:
+    metadata:
+      labels:
+        app: nameless
+    spec:
+      containers:
+        - name: app
+          image: shop/app:1

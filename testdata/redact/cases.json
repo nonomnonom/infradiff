@@ -1,0 +1,17 @@
+[
+  { "key": "DB_PASSWORD", "value": "hunter2", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "db-password", "value": "hunter2", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "postgres_password", "value": "s3cret", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "API_KEY", "value": "abc123", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "apiKey", "value": "abc123", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "AWS_SECRET_ACCESS_KEY", "value": "aws-secret", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "STRIPE_TOKEN", "value": "sk_live_x", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "authToken", "value": "t0ken", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "credentials", "value": "user:pass", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "TLS_PRIVATE_KEY", "value": "-----BEGIN KEY-----", "want_sensitive": true, "want_value": "[redacted]" },
+  { "key": "empty_secret", "value": "", "want_sensitive": true, "want_value": "" },
+  { "key": "image", "value": "postgres:16", "want_sensitive": false, "want_value": "postgres:16" },
+  { "key": "ports", "value": "5432:5432", "want_sensitive": false, "want_value": "5432:5432" },
+  { "key": "private_ip", "value": "10.0.0.4", "want_sensitive": false, "want_value": "10.0.0.4" },
+  { "key": "replicas", "value": "3", "want_sensitive": false, "want_value": "3" }
+]

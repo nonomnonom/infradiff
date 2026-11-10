@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "compose:service:api",
+      "name": "api",
+      "type": "service",
+      "group": "group:project:shop",
+      "source": { "file": "compose.yaml", "line": 12 },
+      "metadata": { "image": "shop/api:latest" },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:service:db",
+      "name": "db",
+      "type": "database",
+      "group": "group:project:shop",
+      "source": { "file": "compose.yaml", "line": 20 },
+      "metadata": { "image": "postgres:16" },
+      "status": "unchanged"
+    },
+    {
+      "id": "compose:network:default",
+      "name": "default",
+      "type": "network",
+      "group": "group:project:shop",
+      "source": { "file": "compose.yaml", "line": 2 },
+      "metadata": {},
+      "status": "unchanged"
+    }
+  ],
+  "edges": [
+    {
+      "from": "compose:service:db",
+      "to": "compose:network:default",
+      "kind": "network",
+      "status": "unchanged"
+    },
+    {
+      "from": "compose:service:api",
+      "to": "compose:service:db",
+      "kind": "depends_on",
+      "status": "unchanged"
+    }
+  ],
+  "groups": [
+    {
+      "id": "group:project:shop",
+      "name": "shop",
+      "kind": "project",
+      "status": "unchanged"
+    }
+  ],
+  "summary": {
+    "nodes": { "added": 0, "removed": 0, "changed": 0, "unchanged": 3 },
+    "edges": { "added": 0, "removed": 0, "changed": 0, "unchanged": 2 },
+    "text": ""
+  }
+}

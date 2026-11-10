@@ -1,0 +1,108 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.5",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        { "address": "aws_vpc.main", "mode": "managed", "type": "aws_vpc", "name": "main" },
+        { "address": "aws_subnet.public_a", "mode": "managed", "type": "aws_subnet", "name": "public_a" },
+        { "address": "aws_s3_bucket.assets", "mode": "managed", "type": "aws_s3_bucket", "name": "assets" }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_vpc.main",
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["no-op"], "before": { "cidr_block": "10.0.0.0/16" }, "after": { "cidr_block": "10.0.0.0/16" } }
+    },
+    {
+      "address": "aws_subnet.public_a",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "public_a",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["no-op"], "before": { "cidr_block": "10.0.1.0/24" }, "after": { "cidr_block": "10.0.1.0/24" } }
+    },
+    {
+      "address": "aws_s3_bucket.assets",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "assets",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["create"], "before": null, "after": { "bucket": "shop-assets-prod" }, "after_unknown": { "id": true, "arn": true } }
+    },
+    {
+      "address": "aws_db_instance.main",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["update"], "before": { "engine_version": "16.2" }, "after": { "engine_version": "16.3" } }
+    },
+    {
+      "address": "aws_ecs_service.app",
+      "mode": "managed",
+      "type": "aws_ecs_service",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["delete"], "before": { "name": "shop-app" }, "after": null }
+    },
+    {
+      "address": "aws_instance.web",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["delete", "create"], "before": { "ami": "ami-old" }, "after": { "ami": "ami-new" } }
+    },
+    {
+      "address": "data.aws_ami.ubuntu",
+      "mode": "data",
+      "type": "aws_ami",
+      "name": "ubuntu",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": { "actions": ["read"], "before": null, "after": { "id": "ami-123" } }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "aws": { "name": "aws", "full_name": "registry.terraform.io/hashicorp/aws" }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "expressions": {
+            "cidr_block": { "constant_value": "10.0.0.0/16" }
+          }
+        },
+        {
+          "address": "aws_subnet.public_a",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "public_a",
+          "expressions": {
+            "vpc_id": { "references": ["aws_vpc.main.id", "aws_vpc.main"] },
+            "cidr_block": { "constant_value": "10.0.1.0/24" }
+          }
+        },
+        {
+          "address": "aws_s3_bucket.assets",
+          "mode": "managed",
+          "type": "aws_s3_bucket",
+          "name": "assets",
+          "expressions": {
+            "bucket": { "constant_value": "shop-assets-prod" }
+          }
+        }
+      ]
+    }
+  }
+}
