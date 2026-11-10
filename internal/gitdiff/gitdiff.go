@@ -19,7 +19,13 @@ func RepoRoot(dir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("git: %s is not inside a git repository", dir)
 	}
-	return filepath.FromSlash(strings.TrimSpace(string(out))), nil
+	root := filepath.FromSlash(strings.TrimSpace(string(out)))
+	// git may report the repository through a symlink or a Windows short
+	// name. Canonicalize it so paths derived from the caller compare equal.
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	return root, nil
 }
 
 // VerifyRef checks that ref resolves to a commit.

@@ -101,14 +101,16 @@ func loadGitSides(ref, pathArg string) (*model.Graph, *model.Graph, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("diff --git: %w", err)
 	}
+	cwd = canonicalPath(cwd)
 	repoRoot, err := gitdiff.RepoRoot(cwd)
 	if err != nil {
 		return nil, nil, err
 	}
-	absPath, err := filepath.Abs(pathArg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("diff --git: %w", err)
+	absPath := filepath.Join(cwd, pathArg)
+	if filepath.IsAbs(pathArg) {
+		absPath = filepath.Clean(pathArg)
 	}
+	absPath = canonicalPath(absPath)
 	rel, err := filepath.Rel(repoRoot, absPath)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return nil, nil, fmt.Errorf("diff --git: %s is outside the repository %s", pathArg, repoRoot)
@@ -147,6 +149,19 @@ func loadGitSides(ref, pathArg string) (*model.Graph, *model.Graph, error) {
 	}
 
 	return oldGraph, newGraph, nil
+}
+
+// canonicalPath resolves symlinks and Windows short names when path exists.
+// When the leaf does not exist, it still resolves the parent so a deleted
+// directory keeps comparing against the canonical repository root.
+func canonicalPath(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	if resolved, err := filepath.EvalSymlinks(filepath.Dir(path)); err == nil {
+		return filepath.Join(resolved, filepath.Base(path))
+	}
+	return path
 }
 
 func hasChanges(graph *model.Graph) bool {

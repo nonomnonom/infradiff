@@ -43,8 +43,16 @@ func TestExtractRef(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RepoRoot: %v", err)
 	}
-	if filepath.Clean(root) != filepath.Clean(repo) {
-		t.Fatalf("RepoRoot() = %q, want %q", root, repo)
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("stat RepoRoot: %v", err)
+	}
+	repoInfo, err := os.Stat(repo)
+	if err != nil {
+		t.Fatalf("stat temp repo: %v", err)
+	}
+	if !os.SameFile(rootInfo, repoInfo) {
+		t.Fatalf("RepoRoot() = %q, want the same directory as %q", root, repo)
 	}
 	if err := VerifyRef(root, "HEAD"); err != nil {
 		t.Fatalf("VerifyRef: %v", err)
