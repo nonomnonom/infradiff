@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 // Parser implements parser.Parser for Terraform.

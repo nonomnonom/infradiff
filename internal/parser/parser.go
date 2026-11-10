@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
-	"github.com/infradiff/infradiff/internal/parser/compose"
-	"github.com/infradiff/infradiff/internal/parser/kubernetes"
-	"github.com/infradiff/infradiff/internal/parser/terraform"
+	"github.com/nonomnonom/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/parser/compose"
+	"github.com/nonomnonom/infradiff/internal/parser/kubernetes"
+	"github.com/nonomnonom/infradiff/internal/parser/terraform"
 )
 
 // Parser turns one file or directory into a graph.

@@ -7,7 +7,7 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 const mermaidVersion = "12.3.0"

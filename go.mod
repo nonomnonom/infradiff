@@ -1,4 +1,4 @@
-module github.com/infradiff/infradiff
+module github.com/nonomnonom/infradiff
 
 go 1.27.0
 

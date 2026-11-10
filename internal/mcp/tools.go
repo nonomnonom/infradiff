@@ -6,9 +6,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/infradiff/infradiff/internal/diff"
-	"github.com/infradiff/infradiff/internal/parser"
-	"github.com/infradiff/infradiff/internal/render"
+	"github.com/nonomnonom/infradiff/internal/diff"
+	"github.com/nonomnonom/infradiff/internal/parser"
+	"github.com/nonomnonom/infradiff/internal/render"
 )
 
 type generateArgs struct {

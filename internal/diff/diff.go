@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 // Compare returns a new graph containing the union of both inputs, with every

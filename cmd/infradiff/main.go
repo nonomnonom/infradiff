@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"github.com/infradiff/infradiff/cmd/infradiff/cli"
+	"github.com/nonomnonom/infradiff/cmd/infradiff/cli"
 )
 
 func main() {

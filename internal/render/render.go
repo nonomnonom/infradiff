@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 // Format is an output format name.

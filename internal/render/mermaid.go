@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 // Mermaid renders a flowchart. Colors are applied with classDef for nodes and

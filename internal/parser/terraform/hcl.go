@@ -10,9 +10,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/infradiff/infradiff/internal/model"
-	"github.com/infradiff/infradiff/internal/parser/infer"
-	"github.com/infradiff/infradiff/internal/redact"
+	"github.com/nonomnonom/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/parser/infer"
+	"github.com/nonomnonom/infradiff/internal/redact"
 	"github.com/zclconf/go-cty/cty"
 )
 

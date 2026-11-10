@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/diff"
-	"github.com/infradiff/infradiff/internal/gitdiff"
-	"github.com/infradiff/infradiff/internal/model"
-	"github.com/infradiff/infradiff/internal/parser"
-	"github.com/infradiff/infradiff/internal/render"
+	"github.com/nonomnonom/infradiff/internal/diff"
+	"github.com/nonomnonom/infradiff/internal/gitdiff"
+	"github.com/nonomnonom/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/parser"
+	"github.com/nonomnonom/infradiff/internal/render"
 	"github.com/spf13/cobra"
 )
 

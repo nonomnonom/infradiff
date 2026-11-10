@@ -11,7 +11,7 @@ files itself, does not download anything, and sends nothing over the network.
 Install the CLI first:
 
 ```bash
-go install github.com/infradiff/infradiff/cmd/infradiff@latest
+go install github.com/nonomnonom/infradiff/cmd/infradiff@latest
 ```
 
 If the binary is not on `PATH`, set `infradiff.executable` to its absolute path

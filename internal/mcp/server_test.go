@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 var testBinary string

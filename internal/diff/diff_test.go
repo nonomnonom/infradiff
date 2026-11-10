@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/infradiff/infradiff/internal/model"
-	"github.com/infradiff/infradiff/internal/parser"
+	"github.com/nonomnonom/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/parser"
 )
 
 func TestCompareFixtures(t *testing.T) {

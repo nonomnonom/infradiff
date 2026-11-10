@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 func TestParseDirectory(t *testing.T) {

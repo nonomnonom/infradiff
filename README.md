@@ -34,13 +34,13 @@ types, ports, and edge kinds.
 Go 1.27 or newer:
 
 ```bash
-go install github.com/infradiff/infradiff/cmd/infradiff@latest
+go install github.com/nonomnonom/infradiff/cmd/infradiff@latest
 ```
 
 Or build from a checkout:
 
 ```bash
-git clone https://github.com/infradiff/infradiff
+git clone https://github.com/nonomnonom/infradiff
 cd infradiff
 make build
 ./bin/infradiff version

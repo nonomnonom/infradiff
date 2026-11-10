@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
-	"github.com/infradiff/infradiff/internal/parser/infer"
-	"github.com/infradiff/infradiff/internal/redact"
+	"github.com/nonomnonom/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/parser/infer"
+	"github.com/nonomnonom/infradiff/internal/redact"
 )
 
 type planFile struct {

@@ -3,7 +3,7 @@ package infer
 import (
 	"testing"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 func TestResourceType(t *testing.T) {

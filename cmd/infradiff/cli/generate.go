@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	"github.com/infradiff/infradiff/internal/parser"
-	"github.com/infradiff/infradiff/internal/render"
-	"github.com/infradiff/infradiff/internal/watch"
+	"github.com/nonomnonom/infradiff/internal/parser"
+	"github.com/nonomnonom/infradiff/internal/render"
+	"github.com/nonomnonom/infradiff/internal/watch"
 	"github.com/spf13/cobra"
 )
 

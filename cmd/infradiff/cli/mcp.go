@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	mcpserver "github.com/infradiff/infradiff/internal/mcp"
+	mcpserver "github.com/nonomnonom/infradiff/internal/mcp"
 )
 
 func newMCPCmd() *cobra.Command {

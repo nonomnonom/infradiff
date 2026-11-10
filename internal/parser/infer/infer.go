@@ -4,7 +4,7 @@ package infer
 import (
 	"strings"
 
-	"github.com/infradiff/infradiff/internal/model"
+	"github.com/nonomnonom/infradiff/internal/model"
 )
 
 // This file is the single place where technology names map to node types.

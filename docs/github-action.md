@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: infradiff/infradiff@main
+      - uses: nonomnonom/infradiff@main
         with:
           path: deploy
           base-ref: ${{ github.event.pull_request.base.sha }}
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: infradiff/infradiff@main
+      - uses: nonomnonom/infradiff@main
         id: diagram
         with:
           path: deploy
