@@ -188,3 +188,31 @@ func runGitCommand(t *testing.T, dir string, args ...string) {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }
+
+func TestDiffFailOnGroupChange(t *testing.T) {
+	before := t.TempDir()
+	after := t.TempDir()
+	resource := "resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n}\n"
+	if err := os.WriteFile(filepath.Join(before, "main.tf"), []byte(resource), 0o600); err != nil {
+		t.Fatalf("write before: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(after, "main.tf"), []byte(resource+"\nmodule \"empty\" {\n  source = \"./modules/empty\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write after: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(after, "modules", "empty"), 0o750); err != nil {
+		t.Fatalf("mkdir module: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(after, "modules", "empty", "main.tf"), nil, 0o600); err != nil {
+		t.Fatalf("write empty module: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := Execute([]string{"diff", before, after, "--fail-on-change", "-f", "json"}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("Execute() = %d, want 1; stderr = %q", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "+1 added") ||
+		!strings.Contains(stderr.String(), "+ group group:module:empty") {
+		t.Fatalf("stderr = %q, want group change", stderr.String())
+	}
+}

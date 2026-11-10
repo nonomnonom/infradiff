@@ -4,6 +4,8 @@ package diff
 import (
 	"fmt"
 	"maps"
+	"sort"
+	"strings"
 
 	"github.com/nonomnonom/infradiff/internal/model"
 )
@@ -28,9 +30,15 @@ func Compare(oldGraph, newGraph *model.Graph) *model.Graph {
 	oldNodes := indexNodes(oldGraph.Nodes)
 	newNodes := indexNodes(newGraph.Nodes)
 	nodeStatuses := make(map[string]model.Status, len(newNodes)+len(oldNodes))
+	renamed := detectRenames(oldGraph.Nodes, newGraph.Nodes, oldNodes, newNodes)
 
 	for _, node := range newGraph.Nodes {
 		status := nodeStatusFor(oldNodes[node.ID], node.ID, node)
+		if status == model.StatusAdded && node.Status == model.StatusUnchanged {
+			if _, ok := renamed[node.ID]; ok {
+				status = model.StatusChanged
+			}
+		}
 		nodeStatuses[node.ID] = status
 		out := node
 		out.Status = status
@@ -40,13 +48,16 @@ func Compare(oldGraph, newGraph *model.Graph) *model.Graph {
 		if _, exists := newNodes[node.ID]; exists {
 			continue
 		}
+		if _, exists := renamedReverse(renamed, node.ID); exists {
+			continue
+		}
 		nodeStatuses[node.ID] = model.StatusRemoved
 		out := node
 		out.Status = model.StatusRemoved
 		result.Nodes = append(result.Nodes, out)
 	}
 
-	result.Edges = compareEdges(oldGraph.Edges, newGraph.Edges, nodeStatuses)
+	result.Edges = compareEdges(oldGraph.Edges, newGraph.Edges, nodeStatuses, renamed)
 
 	oldGroups := make(map[string]model.Group, len(oldGraph.Groups))
 	for _, group := range oldGraph.Groups {
@@ -56,7 +67,8 @@ func Compare(oldGraph, newGraph *model.Graph) *model.Graph {
 		out := group
 		if existing, ok := oldGroups[group.ID]; !ok {
 			out.Status = model.StatusAdded
-		} else if existing.Name != group.Name || existing.Kind != group.Kind {
+		} else if existing.Name != group.Name || existing.Kind != group.Kind ||
+			!maps.Equal(existing.Metadata, group.Metadata) {
 			out.Status = model.StatusChanged
 		} else {
 			out.Status = model.StatusUnchanged
@@ -75,6 +87,63 @@ func Compare(oldGraph, newGraph *model.Graph) *model.Graph {
 	result.Sort()
 	result.Recount()
 	return result
+}
+
+// detectRenames pairs a removed node with an added node only when the two are
+// the sole candidates with the same type and metadata. Group is deliberately
+// ignored so a rename or namespace move can still be recognized; the group
+// itself is compared separately. Several identical resources are not paired.
+type renameIndex map[string]map[string]string
+
+func detectRenames(oldNodes, newNodes []model.Node, oldByID, newByID map[string]model.Node) renameIndex {
+	type bucketKey string
+	oldBuckets := make(map[bucketKey][]model.Node)
+	newBuckets := make(map[bucketKey][]model.Node)
+	for _, node := range oldNodes {
+		if _, exists := newByID[node.ID]; exists {
+			continue
+		}
+		key := bucketKey(renameKey(node))
+		oldBuckets[key] = append(oldBuckets[key], node)
+	}
+	for _, node := range newNodes {
+		if _, exists := oldByID[node.ID]; exists {
+			continue
+		}
+		key := bucketKey(renameKey(node))
+		newBuckets[key] = append(newBuckets[key], node)
+	}
+
+	renamed := make(renameIndex)
+	for key, olds := range oldBuckets {
+		news := newBuckets[key]
+		if len(olds) != 1 || len(news) != 1 {
+			continue
+		}
+		if renamed[news[0].ID] == nil {
+			renamed[news[0].ID] = make(map[string]string)
+		}
+		renamed[news[0].ID][olds[0].ID] = news[0].ID
+	}
+	return renamed
+}
+
+func renameKey(node model.Node) string {
+	keys := make([]string, 0, len(node.Metadata))
+	for key, value := range node.Metadata {
+		keys = append(keys, key+"\x00"+value)
+	}
+	sort.Strings(keys)
+	return string(node.Type) + "\x00" + strings.Join(keys, "\x01")
+}
+
+func renamedReverse(renamed renameIndex, oldID string) (string, bool) {
+	for newID, olds := range renamed {
+		if _, ok := olds[oldID]; ok {
+			return newID, true
+		}
+	}
+	return "", false
 }
 
 func nodeStatusFor(old model.Node, id string, current model.Node) model.Status {
@@ -99,10 +168,12 @@ func nodeStatusFor(old model.Node, id string, current model.Node) model.Status {
 	return model.StatusUnchanged
 }
 
-func compareEdges(oldEdges, newEdges []model.Edge, nodeStatus map[string]model.Status) []model.Edge {
+func compareEdges(oldEdges, newEdges []model.Edge, nodeStatus map[string]model.Status, renamed renameIndex) []model.Edge {
 	type key struct{ from, to string }
 	oldByPair := make(map[key]model.Edge, len(oldEdges))
 	for _, edge := range oldEdges {
+		edge.From = renamedID(renamed, edge.From)
+		edge.To = renamedID(renamed, edge.To)
 		oldByPair[key{edge.From, edge.To}] = edge
 	}
 
@@ -124,8 +195,8 @@ func compareEdges(oldEdges, newEdges []model.Edge, nodeStatus map[string]model.S
 		}
 		result = append(result, out)
 	}
-	for _, edge := range oldEdges {
-		if seen[key{edge.From, edge.To}] {
+	for pair, edge := range oldByPair {
+		if seen[pair] {
 			continue
 		}
 		out := edge
@@ -135,9 +206,20 @@ func compareEdges(oldEdges, newEdges []model.Edge, nodeStatus map[string]model.S
 	return result
 }
 
+func renamedID(renamed renameIndex, id string) string {
+	for newID, olds := range renamed {
+		for oldID := range olds {
+			if oldID == id {
+				return newID
+			}
+		}
+	}
+	return id
+}
+
 // ChangeLines returns one line per changed element, in sorted order.
 func ChangeLines(graph *model.Graph) []string {
-	lines := make([]string, 0, len(graph.Nodes)+len(graph.Edges))
+	lines := make([]string, 0, len(graph.Nodes)+len(graph.Edges)+len(graph.Groups))
 	for _, node := range graph.Nodes {
 		if node.Status == model.StatusUnchanged {
 			continue
@@ -150,6 +232,13 @@ func ChangeLines(graph *model.Graph) []string {
 		}
 		lines = append(lines, fmt.Sprintf("%s edge %s -> %s (%s)",
 			statusSymbol(edge.Status), edge.From, edge.To, edge.Kind))
+	}
+	for _, group := range graph.Groups {
+		if group.Status == model.StatusUnchanged {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s group %s (%s)",
+			statusSymbol(group.Status), group.ID, group.Kind))
 	}
 	return lines
 }

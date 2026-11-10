@@ -16,6 +16,9 @@ func newGenerateCmd() *cobra.Command {
 	var format string
 	var output string
 	var watchMode bool
+	var focus string
+	var depth int
+	var hide []string
 
 	cmd := &cobra.Command{
 		Use:   "generate <path>",
@@ -34,6 +37,14 @@ func newGenerateCmd() *cobra.Command {
 				graph, err := parser.DefaultRegistry().ParsePath(args[0])
 				if err != nil {
 					return err
+				}
+				if focus != "" || len(hide) > 0 {
+					graph, err = render.Filter(graph, render.FilterOptions{
+						Focus: focus, Depth: depth, Hide: hide,
+					})
+					if err != nil {
+						return err
+					}
 				}
 				data, err := render.Render(graph, outFormat)
 				if err != nil {
@@ -87,6 +98,9 @@ func newGenerateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&format, "format", "f", "mermaid", "output format: mermaid, json, or html")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "write output to this file instead of stdout")
 	cmd.Flags().BoolVar(&watchMode, "watch", false, "regenerate whenever an input file changes")
+	cmd.Flags().StringVar(&focus, "focus", "", "show only nodes within --depth edges of this node id or name")
+	cmd.Flags().IntVar(&depth, "depth", 1, "how many edges to include around --focus")
+	cmd.Flags().StringSliceVar(&hide, "hide", nil, "hide node ids, names, or types (comma-separated or repeated)")
 	return cmd
 }
 

@@ -7,6 +7,7 @@ flowchart LR
     n_k8s_secret_notes_notes_secret["notes-secret<br/>other"]
     n_k8s_service_notes_web{{"web<br/>loadbalancer"}}
   end
+  n_k8s_namespace_notes["notes<br/>other"]
   n_k8s_deployment_notes_web -->|reference| n_k8s_configmap_notes_notes_config
   n_k8s_deployment_notes_web -->|reference| n_k8s_secret_notes_notes_secret
   n_k8s_ingress_notes_web -->|routes_to| n_k8s_service_notes_web
@@ -18,6 +19,7 @@ flowchart LR
   class n_k8s_configmap_notes_notes_config unchanged
   class n_k8s_deployment_notes_web unchanged
   class n_k8s_ingress_notes_web unchanged
+  class n_k8s_namespace_notes unchanged
   class n_k8s_secret_notes_notes_secret unchanged
   class n_k8s_service_notes_web unchanged
   linkStyle 0 stroke:#94a3b8,stroke-width:1px

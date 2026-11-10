@@ -184,8 +184,8 @@ func TestParseErrors(t *testing.T) {
 			t.Fatalf("write: %v", err)
 		}
 		_, err := New().Parse(dir)
-		if err == nil || !strings.Contains(err.Error(), "no resource blocks") {
-			t.Fatalf("Parse() = %v, want no resource blocks", err)
+		if err == nil || !strings.Contains(err.Error(), "no resource or data blocks") {
+			t.Fatalf("Parse() = %v, want no resource or data blocks", err)
 		}
 	})
 	t.Run("syntax error", func(t *testing.T) {
@@ -255,7 +255,8 @@ func TestGroupForAddress(t *testing.T) {
 		wantName string
 	}{
 		{"aws_vpc.main", "aws_vpc", "main", "group:module:root", "root"},
-		{"module.app.aws_instance.web", "aws_instance", "web", "group:module:module.app", "module.app"},
+		{"module.app.aws_instance.web", "aws_instance", "web", "group:module:app", "app"},
+		{"module.app.module.db.aws_db_instance.main", "aws_db_instance", "main", "group:module:app.db", "app.db"},
 		{"aws_instance.web[0]", "aws_instance", "web", "group:module:root", "root"},
 	}
 	for _, tt := range tests {
@@ -297,4 +298,153 @@ func hasEdge(graph *model.Graph, from, to string) bool {
 		}
 	}
 	return false
+}
+
+func TestParseModuleTree(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	write("main.tf", `
+module "network" {
+  source = "./modules/network"
+}
+
+module "app" {
+  source = "./modules/app"
+  count  = 2
+}
+
+resource "aws_instance" "web" {
+  ami           = "ami-123"
+  instance_type = "t3.micro"
+  subnet_id     = module.network.subnet_id
+  tags = {
+    Name = "web"
+    Team = "platform"
+  }
+}
+
+resource "aws_instance" "workers" {
+  count = 2
+  ami   = data.aws_ami.ubuntu.id
+  for_each = {
+    a = 1
+    b = 2
+  }
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+}
+`)
+	write("modules/network/main.tf", `
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+}
+
+resource "aws_subnet" "public" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.1.0/24"
+}
+
+resource "aws_security_group" "web" {
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+output "subnet_id" {
+  value = aws_subnet.public.id
+}
+`)
+	write("modules/app/main.tf", `
+resource "aws_instance" "web" {
+  instance_type = "t3.small"
+}
+`)
+
+	graph, err := New().Parse(dir)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(graph.Groups) != 3 {
+		t.Fatalf("groups = %+v, want root, network, and app groups", graph.Groups)
+	}
+	var appGroup model.Group
+	for _, group := range graph.Groups {
+		if group.ID == "group:module:app" {
+			appGroup = group
+		}
+	}
+	if appGroup.Metadata["count"] != "2" {
+		t.Fatalf("app group metadata = %+v, want module count", appGroup.Metadata)
+	}
+	for _, id := range []string{
+		"tf:aws_instance.web",
+		"tf:aws_instance.workers",
+		"tf:data.aws_ami.ubuntu",
+		"tf:module.network.aws_vpc.main",
+		"tf:module.network.aws_subnet.public",
+		"tf:module.app.aws_instance.web",
+	} {
+		if _, ok := graph.Node(id); !ok {
+			t.Fatalf("missing %s", id)
+		}
+	}
+
+	web, _ := graph.Node("tf:aws_instance.web")
+	if web.Metadata["instance_type"] != "t3.micro" || web.Metadata["tags_hash"] == "" {
+		t.Fatalf("web metadata = %+v", web.Metadata)
+	}
+	group, _ := graph.Node("tf:module.network.aws_security_group.web")
+	if group.Metadata["ingress_cidrs"] != "0.0.0.0/0" {
+		t.Fatalf("security group metadata = %+v", group.Metadata)
+	}
+	workers, _ := graph.Node("tf:aws_instance.workers")
+	if workers.Metadata["count"] != "2" || workers.Metadata["for_each"] != "a, b" {
+		t.Fatalf("workers metadata = %+v", workers.Metadata)
+	}
+	if !hasEdge(graph, "tf:aws_instance.web", "tf:module.network.aws_subnet.public") {
+		t.Fatal("module output edge is missing")
+	}
+	if !hasEdge(graph, "tf:aws_instance.workers", "tf:data.aws_ami.ubuntu") {
+		t.Fatal("data source edge is missing")
+	}
+	if !hasEdge(graph, "tf:module.network.aws_subnet.public", "tf:module.network.aws_vpc.main") {
+		t.Fatal("module resource edge is missing")
+	}
+}
+
+func TestParseModuleOnlyRoot(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "child"), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"),
+		[]byte("module \"child\" {\n  source = \"./child\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "child", "main.tf"),
+		[]byte("resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write child: %v", err)
+	}
+
+	graph, err := New().Parse(dir)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if _, ok := graph.Node("tf:module.child.aws_vpc.main"); !ok {
+		t.Fatalf("child node is missing: %+v", graph.Nodes)
+	}
 }

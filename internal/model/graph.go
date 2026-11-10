@@ -32,10 +32,11 @@ func ValidGroupKind(kind string) bool {
 
 // Group is a named collection of nodes, such as a namespace.
 type Group struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Kind   string `json:"kind"`
-	Status Status `json:"status"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Kind     string            `json:"kind"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+	Status   Status            `json:"status"`
 }
 
 // Counts holds how many elements are in each status.

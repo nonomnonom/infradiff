@@ -42,6 +42,20 @@
       "status": "unchanged"
     },
     {
+      "id": "k8s:namespace:notes",
+      "name": "notes",
+      "type": "other",
+      "group": "",
+      "source": {
+        "file": "app.yaml",
+        "line": 1
+      },
+      "metadata": {
+        "kind": "Namespace"
+      },
+      "status": "unchanged"
+    },
+    {
       "id": "k8s:secret:notes/notes-secret",
       "name": "notes-secret",
       "type": "other",
@@ -98,12 +112,6 @@
   ],
   "groups": [
     {
-      "id": "group:namespace:default",
-      "name": "default",
-      "kind": "namespace",
-      "status": "unchanged"
-    },
-    {
       "id": "group:namespace:notes",
       "name": "notes",
       "kind": "namespace",
@@ -115,7 +123,7 @@
       "added": 0,
       "removed": 0,
       "changed": 0,
-      "unchanged": 5
+      "unchanged": 6
     },
     "edges": {
       "added": 0,

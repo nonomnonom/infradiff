@@ -27,8 +27,8 @@ infradiff generate examples/terraform -f mermaid -o examples/terraform/infradiff
 infradiff generate examples/terraform -f json -o examples/terraform/infradiff.json
 ```
 
-Terraform files in one directory are parsed together. A saved plan JSON is also
-accepted, for example
+Terraform files in one directory and their local module calls are parsed
+together. A saved plan JSON is also accepted, for example
 `infradiff generate plan.json -f mermaid`.
 
 ## HTML

@@ -227,3 +227,53 @@ func TestParserFor(t *testing.T) {
 		t.Fatalf("ParserFor(plain yaml) claimed by %s", p.Name())
 	}
 }
+
+func TestParseTerraformModuleTreeOnce(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "modules", "network"), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.tf"),
+		[]byte("module \"network\" {\n  source = \"./modules/network\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "modules", "network", "main.tf"),
+		[]byte("resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write child: %v", err)
+	}
+
+	graph, err := DefaultRegistry().ParsePath(root)
+	if err != nil {
+		t.Fatalf("ParsePath: %v", err)
+	}
+	if len(graph.Nodes) != 1 {
+		t.Fatalf("node count = %d, want 1 (child must not be parsed twice): %+v", len(graph.Nodes), graph.Nodes)
+	}
+	if graph.Nodes[0].Source.File != "modules/network/main.tf" {
+		t.Fatalf("source = %q", graph.Nodes[0].Source.File)
+	}
+}
+
+func TestParseComposeOverrideDirectory(t *testing.T) {
+	dir := t.TempDir()
+	base := "name: shop\nservices:\n  api:\n    image: shop/api:1\n"
+	override := "services:\n  api:\n    image: shop/api:2\n"
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(base), 0o600); err != nil {
+		t.Fatalf("write base: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "compose.override.yaml"), []byte(override), 0o600); err != nil {
+		t.Fatalf("write override: %v", err)
+	}
+
+	graph, err := DefaultRegistry().ParsePath(dir)
+	if err != nil {
+		t.Fatalf("ParsePath: %v", err)
+	}
+	if len(graph.Nodes) != 2 {
+		t.Fatalf("node count = %d, want service plus default network", len(graph.Nodes))
+	}
+	node, ok := graph.Node("compose:service:api")
+	if !ok || node.Metadata["image"] != "shop/api:2" {
+		t.Fatalf("api = %+v, want override image", node)
+	}
+}

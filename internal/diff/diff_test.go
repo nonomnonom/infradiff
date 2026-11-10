@@ -231,13 +231,55 @@ func TestChangeLines(t *testing.T) {
 	})
 
 	lines := ChangeLines(Compare(oldGraph, newGraph))
-	if len(lines) != 2 {
-		t.Fatalf("lines = %v, want 2", lines)
+	if len(lines) != 1 {
+		t.Fatalf("lines = %v, want one renamed node", lines)
 	}
-	if !reflect.DeepEqual(lines, []string{
-		"+ node added (service)",
-		"- node removed (service)",
-	}) {
+	// The only removed/added pair has identical content, so it is reported as
+	// a rename instead of a deletion plus creation.
+	if !reflect.DeepEqual(lines, []string{"~ node added (service)"}) {
 		t.Fatalf("lines = %v", lines)
+	}
+}
+
+func TestCompareGroupOnlyChange(t *testing.T) {
+	oldGraph := model.New()
+	newGraph := model.New()
+	newGraph.Groups = append(newGraph.Groups, model.Group{
+		ID: "group:namespace:shop", Name: "shop", Kind: model.GroupNamespace,
+		Status: model.StatusUnchanged,
+	})
+
+	result := Compare(oldGraph, newGraph)
+	if result.Summary.Text != "+1 added, -0 removed, ~0 changed" {
+		t.Fatalf("summary = %q", result.Summary.Text)
+	}
+	if lines := ChangeLines(result); len(lines) != 1 ||
+		lines[0] != "+ group group:namespace:shop (namespace)" {
+		t.Fatalf("ChangeLines() = %v", lines)
+	}
+}
+
+func TestCompareDetectsRename(t *testing.T) {
+	oldGraph := model.New()
+	oldGraph.Nodes = append(oldGraph.Nodes, model.Node{
+		ID: "compose:service:old", Name: "old", Type: model.NodeService,
+		Source:   model.Source{File: "compose.yaml", Line: 1},
+		Metadata: map[string]string{"image": "shop/api:2"},
+		Status:   model.StatusUnchanged,
+	})
+	newGraph := model.New()
+	newGraph.Nodes = append(newGraph.Nodes, model.Node{
+		ID: "compose:service:new", Name: "new", Type: model.NodeService,
+		Source:   model.Source{File: "compose.yaml", Line: 1},
+		Metadata: map[string]string{"image": "shop/api:2"},
+		Status:   model.StatusUnchanged,
+	})
+
+	result := Compare(oldGraph, newGraph)
+	if len(result.Nodes) != 1 || result.Nodes[0].Status != model.StatusChanged {
+		t.Fatalf("nodes = %+v, want one changed rename", result.Nodes)
+	}
+	if result.Summary.Text != "+0 added, -0 removed, ~1 changed" {
+		t.Fatalf("summary = %q", result.Summary.Text)
 	}
 }

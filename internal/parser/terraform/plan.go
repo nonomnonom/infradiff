@@ -215,6 +215,19 @@ func groupForAddress(address, resourceType, name string) (string, string) {
 	if prefix == "" {
 		return rootGroupID, "root"
 	}
+	// Terraform addresses say module.network.module.database, while HCL
+	// module paths and groups use network.database.
+	parts := strings.Split(prefix, ".")
+	modules := parts[:0]
+	for _, part := range parts {
+		if part != "module" {
+			modules = append(modules, part)
+		}
+	}
+	prefix = strings.Join(modules, ".")
+	if prefix == "" {
+		return rootGroupID, "root"
+	}
 	return "group:module:" + prefix, prefix
 }
 

@@ -34,10 +34,13 @@ infradiff mcp [workspace]
 ```
 
 - Default format is Mermaid on stdout.
-- Compose is parsed per file. Terraform and Kubernetes are parsed per directory
-  so references across files resolve. Select the directory, not one file, when
-  the user wants the whole environment.
+- Compose files in one directory are merged with base/override precedence.
+  Terraform module trees and Kubernetes directories are parsed as a unit so
+  references across files resolve. Select the directory, not one file, when the
+  user wants the whole environment.
 - Terraform plan JSON is also accepted as a single file.
+- `generate` accepts `--focus`, `--depth`, and `--hide` to keep a large diagram
+  readable. Use `--hide other,storage` to drop node types that add noise.
 - `--fail-on-change` exits 1 when anything changed; read the rendered output and
   the stderr summary before treating that as an execution failure.
 

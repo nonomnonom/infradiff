@@ -10,7 +10,9 @@ infradiff mcp [workspace]
 
 `workspace` is the directory every tool path is resolved against. It defaults
 to the current directory. Paths outside the workspace, including paths that
-escape through `..` or a symbolic link, are rejected before any file is read.
+escape through `..`, a symbolic link, or a directory junction, are rejected
+before any file is read. A broken link or junction gets an explicit resolution
+error rather than being reported as an ordinary missing file.
 
 The server makes no network calls and writes nothing to disk. It prints only
 newline-delimited JSON-RPC messages to stdout; logs, if any, go to stderr.
@@ -55,8 +57,9 @@ are redacted by the parsers.
 
 Risk severities are `high`, `medium`, and `low`, sorted by severity and then by
 node ID. Current rules flag data stores with published ports or public access,
-cluster services exposed through `LoadBalancer` or `NodePort`, and images that
-float on `latest`.
+security groups or firewalls that allow `0.0.0.0/0` or `::/0`, cluster services
+exposed through `LoadBalancer` or `NodePort`, and images that float on `latest`.
+The CLI diff also reports removed data stores as a data-loss risk.
 
 ## Build the binary
 

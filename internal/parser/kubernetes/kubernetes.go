@@ -90,6 +90,7 @@ func parseSources(paths []string) (*model.Graph, error) {
 	var services []serviceInfo
 	var references []referenceInfo
 	var ingressTargets []ingressInfo
+	var scaleTargets []scaleTargetInfo
 	objects := make(map[string]bool)
 	supported := 0
 
@@ -107,49 +108,54 @@ func parseSources(paths []string) (*model.Graph, error) {
 			continue
 		}
 
-		namespace := header.Metadata.Namespace
-		if namespace == "" {
-			namespace = "default"
-		}
 		name := header.Metadata.Name
 		if name == "" {
 			return nil, fmt.Errorf("kubernetes: %s:%d: %s has no metadata.name; add one so the node can be identified",
 				path, root.Line, header.Kind)
 		}
-		id := objectID(header.Kind, namespace, name)
+
+		namespace := header.Metadata.Namespace
+		clusterScoped := isClusterScoped(header.Kind)
+		if !clusterScoped && namespace == "" && knownNamespaced[header.Kind] {
+			namespace = "default"
+		}
+		if clusterScoped {
+			namespace = ""
+		}
+		groupID := ""
+		if namespace != "" {
+			groupID = "group:namespace:" + namespace
+			if !groups[groupID] {
+				groups[groupID] = true
+				graph.Groups = append(graph.Groups, model.Group{
+					ID:     groupID,
+					Name:   namespace,
+					Kind:   model.GroupNamespace,
+					Status: model.StatusUnchanged,
+				})
+			}
+		}
+
+		id := objectIDFor(header.Kind, namespace, name)
 		if previous, exists := seen[id]; exists {
 			return nil, fmt.Errorf("kubernetes: %s:%d: %s %q is already defined at %s",
 				path, root.Line, header.Kind, name, previous)
 		}
 		seen[id] = fmt.Sprintf("%s:%d", path, root.Line)
-
-		groupID := "group:namespace:" + namespace
-		if !groups[groupID] {
-			groups[groupID] = true
-			graph.Groups = append(graph.Groups, model.Group{
-				ID:     groupID,
-				Name:   namespace,
-				Kind:   model.GroupNamespace,
-				Status: model.StatusUnchanged,
-			})
-		}
+		supported++
 
 		var nodeType model.NodeType
 		metadata := map[string]string{}
 		line := root.Line
 
 		switch header.Kind {
-		case "Deployment", "StatefulSet", "DaemonSet":
+		case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
 			var workloadDoc workloadDocument
 			if err := root.Decode(&workloadDoc); err != nil {
 				return nil, fmt.Errorf("kubernetes: %s:%d: %s %q: %w", path, line, header.Kind, name, err)
 			}
-			supported++
 			nodeType = model.NodeCompute
-			images := containerImages(workloadDoc.Spec.Template.Spec)
-			if len(images) > 0 {
-				metadata["images"] = strings.Join(images, ", ")
-			}
+			addPodTemplateMetadata(metadata, workloadDoc.Spec.Template)
 			if workloadDoc.Spec.Replicas != nil {
 				metadata["replicas"] = fmt.Sprintf("%d", *workloadDoc.Spec.Replicas)
 			}
@@ -161,12 +167,64 @@ func parseSources(paths []string) (*model.Graph, error) {
 				})
 			}
 
+		case "Job":
+			var job jobDocument
+			if err := root.Decode(&job); err != nil {
+				return nil, fmt.Errorf("kubernetes: %s:%d: Job %q: %w", path, line, name, err)
+			}
+			nodeType = model.NodeCompute
+			addPodTemplateMetadata(metadata, job.Spec.Template)
+			if job.Spec.Parallelism != nil {
+				metadata["parallelism"] = fmt.Sprintf("%d", *job.Spec.Parallelism)
+			}
+			if job.Spec.Completions != nil {
+				metadata["completions"] = fmt.Sprintf("%d", *job.Spec.Completions)
+			}
+			labels := job.Spec.Template.Metadata.Labels
+			workloads = append(workloads, workloadInfo{id: id, namespace: namespace, labels: labels})
+			for _, ref := range podReferences(job.Spec.Template.Spec) {
+				references = append(references, referenceInfo{
+					from: id, namespace: namespace, kind: ref.kind, name: ref.name,
+				})
+			}
+
+		case "CronJob":
+			var job cronJobDocument
+			if err := root.Decode(&job); err != nil {
+				return nil, fmt.Errorf("kubernetes: %s:%d: CronJob %q: %w", path, line, name, err)
+			}
+			nodeType = model.NodeCompute
+			addPodTemplateMetadata(metadata, job.Spec.JobTemplate.Spec.Template)
+			if job.Spec.Schedule != "" {
+				metadata["schedule"] = job.Spec.Schedule
+			}
+			labels := job.Spec.JobTemplate.Spec.Template.Metadata.Labels
+			workloads = append(workloads, workloadInfo{id: id, namespace: namespace, labels: labels})
+			for _, ref := range podReferences(job.Spec.JobTemplate.Spec.Template.Spec) {
+				references = append(references, referenceInfo{
+					from: id, namespace: namespace, kind: ref.kind, name: ref.name,
+				})
+			}
+
+		case "Pod":
+			var pod podDocument
+			if err := root.Decode(&pod); err != nil {
+				return nil, fmt.Errorf("kubernetes: %s:%d: Pod %q: %w", path, line, name, err)
+			}
+			nodeType = model.NodeCompute
+			addPodTemplateMetadata(metadata, podTemplate(pod))
+			workloads = append(workloads, workloadInfo{id: id, namespace: namespace, labels: pod.Metadata.Labels})
+			for _, ref := range podReferences(pod.Spec) {
+				references = append(references, referenceInfo{
+					from: id, namespace: namespace, kind: ref.kind, name: ref.name,
+				})
+			}
+
 		case "Service":
 			var serviceDoc serviceDocument
 			if err := root.Decode(&serviceDoc); err != nil {
 				return nil, fmt.Errorf("kubernetes: %s:%d: Service %q: %w", path, line, name, err)
 			}
-			supported++
 			serviceType := serviceDoc.Spec.Type
 			if serviceType == "" {
 				serviceType = "ClusterIP"
@@ -191,7 +249,6 @@ func parseSources(paths []string) (*model.Graph, error) {
 			if err := root.Decode(&ingressDoc); err != nil {
 				return nil, fmt.Errorf("kubernetes: %s:%d: Ingress %q: %w", path, line, name, err)
 			}
-			supported++
 			nodeType = model.NodeIngress
 			hosts := ingressHosts(ingressDoc)
 			if len(hosts) > 0 {
@@ -208,7 +265,6 @@ func parseSources(paths []string) (*model.Graph, error) {
 			if err := root.Decode(&claim); err != nil {
 				return nil, fmt.Errorf("kubernetes: %s:%d: PersistentVolumeClaim %q: %w", path, line, name, err)
 			}
-			supported++
 			nodeType = model.NodeStorage
 			if claim.Spec.StorageClassName != "" {
 				metadata["storage_class"] = claim.Spec.StorageClassName
@@ -221,31 +277,61 @@ func parseSources(paths []string) (*model.Graph, error) {
 			}
 
 		case "ConfigMap":
-			var configMap struct {
-				Metadata objectMeta `yaml:"metadata"`
-			}
-			if err := root.Decode(&configMap); err != nil {
-				return nil, fmt.Errorf("kubernetes: %s:%d: ConfigMap %q: %w", path, line, name, err)
-			}
-			supported++
 			nodeType = model.NodeOther
 
 		case "Secret":
 			var secret struct {
-				Metadata objectMeta `yaml:"metadata"`
-				Type     string     `yaml:"type"`
+				Type string `yaml:"type"`
 			}
 			if err := root.Decode(&secret); err != nil {
 				return nil, fmt.Errorf("kubernetes: %s:%d: Secret %q: %w", path, line, name, err)
 			}
-			supported++
 			nodeType = model.NodeOther
 			if secret.Type != "" {
 				metadata["type"] = secret.Type
 			}
 
+		case "ServiceAccount":
+			nodeType = model.NodeOther
+
+		case "HorizontalPodAutoscaler":
+			var hpa hpaDocument
+			if err := root.Decode(&hpa); err != nil {
+				return nil, fmt.Errorf("kubernetes: %s:%d: HorizontalPodAutoscaler %q: %w", path, line, name, err)
+			}
+			nodeType = model.NodeOther
+			if hpa.Spec.MinReplicas != nil {
+				metadata["min_replicas"] = fmt.Sprintf("%d", *hpa.Spec.MinReplicas)
+			}
+			if hpa.Spec.MaxReplicas > 0 {
+				metadata["max_replicas"] = fmt.Sprintf("%d", hpa.Spec.MaxReplicas)
+			}
+			if hpa.Spec.ScaleTargetRef.Kind != "" && hpa.Spec.ScaleTargetRef.Name != "" {
+				metadata["target"] = hpa.Spec.ScaleTargetRef.Kind + "/" + hpa.Spec.ScaleTargetRef.Name
+				scaleTargets = append(scaleTargets, scaleTargetInfo{
+					from: id, namespace: namespace,
+					kind: hpa.Spec.ScaleTargetRef.Kind, name: hpa.Spec.ScaleTargetRef.Name,
+				})
+			}
+
+		case "PodDisruptionBudget":
+			nodeType = model.NodeOther
+			metadata["kind"] = header.Kind
+
+		case "NetworkPolicy":
+			nodeType = model.NodeNetwork
+			metadata["kind"] = header.Kind
+
+		case "Namespace", "CustomResourceDefinition":
+			nodeType = model.NodeOther
+			metadata["kind"] = header.Kind
+
 		default:
-			continue
+			// Unknown CRDs and cluster extensions are kept as generic nodes
+			// instead of being silently dropped.
+			nodeType = model.NodeOther
+			metadata["kind"] = header.Kind
+			metadata["api_version"] = header.APIVersion
 		}
 
 		objects[id] = true
@@ -261,16 +347,23 @@ func parseSources(paths []string) (*model.Graph, error) {
 	}
 
 	if supported == 0 {
-		return nil, fmt.Errorf("kubernetes: %s: no supported resources found (supported: Deployment, StatefulSet, DaemonSet, Service, Ingress, PersistentVolumeClaim, ConfigMap, Secret)", strings.Join(paths, ", "))
+		return nil, fmt.Errorf("kubernetes: %s: no Kubernetes objects found; add apiVersion, kind, and metadata.name", strings.Join(paths, ", "))
 	}
 
-	graph.Edges = buildEdges(objects, workloads, services, references, ingressTargets)
+	graph.Edges = buildEdges(objects, workloads, services, references, ingressTargets, scaleTargets)
 
 	graph.Sort()
 	if err := graph.Validate(); err != nil {
 		return nil, err
 	}
 	return graph, nil
+}
+
+func addPodTemplateMetadata(metadata map[string]string, template podTemplate) {
+	images := containerImages(template.Spec)
+	if len(images) > 0 {
+		metadata["images"] = strings.Join(images, ", ")
+	}
 }
 
 type workloadInfo struct {
@@ -298,12 +391,20 @@ type ingressInfo struct {
 	service   string
 }
 
+type scaleTargetInfo struct {
+	from      string
+	namespace string
+	kind      string
+	name      string
+}
+
 func buildEdges(
 	objects map[string]bool,
 	workloads []workloadInfo,
 	services []serviceInfo,
 	references []referenceInfo,
 	ingressTargets []ingressInfo,
+	scaleTargets []scaleTargetInfo,
 ) []model.Edge {
 	var edges []model.Edge
 	seen := make(map[string]bool)
@@ -334,6 +435,9 @@ func buildEdges(
 	for _, target := range ingressTargets {
 		add(target.from, objectID("Service", target.namespace, target.service), model.EdgeRoutesTo)
 	}
+	for _, target := range scaleTargets {
+		add(target.from, objectID(target.kind, target.namespace, target.name), model.EdgeReference)
+	}
 	for _, reference := range references {
 		kind := model.EdgeReference
 		if reference.kind == "PersistentVolumeClaim" {
@@ -346,6 +450,55 @@ func buildEdges(
 
 func objectID(kind, namespace, name string) string {
 	return "k8s:" + strings.ToLower(kind) + ":" + namespace + "/" + name
+}
+
+func objectIDFor(kind, namespace, name string) string {
+	if namespace == "" {
+		return "k8s:" + strings.ToLower(kind) + ":" + name
+	}
+	return objectID(kind, namespace, name)
+}
+
+var clusterScopedKinds = map[string]bool{
+	"Namespace":                      true,
+	"Node":                           true,
+	"PersistentVolume":               true,
+	"ClusterRole":                    true,
+	"ClusterRoleBinding":             true,
+	"CustomResourceDefinition":       true,
+	"StorageClass":                   true,
+	"PriorityClass":                  true,
+	"IngressClass":                   true,
+	"RuntimeClass":                   true,
+	"CSIDriver":                      true,
+	"CSINode":                        true,
+	"VolumeAttachment":               true,
+	"APIService":                     true,
+	"MutatingWebhookConfiguration":   true,
+	"ValidatingWebhookConfiguration": true,
+}
+
+var knownNamespaced = map[string]bool{
+	"Deployment":              true,
+	"StatefulSet":             true,
+	"DaemonSet":               true,
+	"ReplicaSet":              true,
+	"Job":                     true,
+	"CronJob":                 true,
+	"Pod":                     true,
+	"Service":                 true,
+	"Ingress":                 true,
+	"PersistentVolumeClaim":   true,
+	"ConfigMap":               true,
+	"Secret":                  true,
+	"ServiceAccount":          true,
+	"HorizontalPodAutoscaler": true,
+	"PodDisruptionBudget":     true,
+	"NetworkPolicy":           true,
+}
+
+func isClusterScoped(kind string) bool {
+	return clusterScopedKinds[kind]
 }
 
 type objectMeta struct {
@@ -399,6 +552,11 @@ type volume struct {
 	} `yaml:"persistentVolumeClaim"`
 }
 
+type podTemplate struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     podSpec    `yaml:"spec"`
+}
+
 type workloadDocument struct {
 	Metadata objectMeta `yaml:"metadata"`
 	Spec     struct {
@@ -406,10 +564,46 @@ type workloadDocument struct {
 		Selector struct {
 			MatchLabels map[string]string `yaml:"matchLabels"`
 		} `yaml:"selector"`
-		Template struct {
-			Metadata objectMeta `yaml:"metadata"`
-			Spec     podSpec    `yaml:"spec"`
-		} `yaml:"template"`
+		Template podTemplate `yaml:"template"`
+	} `yaml:"spec"`
+}
+
+type jobDocument struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     struct {
+		Parallelism *int        `yaml:"parallelism"`
+		Completions *int        `yaml:"completions"`
+		Template    podTemplate `yaml:"template"`
+	} `yaml:"spec"`
+}
+
+type cronJobDocument struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     struct {
+		Schedule    string `yaml:"schedule"`
+		JobTemplate struct {
+			Spec struct {
+				Template podTemplate `yaml:"template"`
+			} `yaml:"spec"`
+		} `yaml:"jobTemplate"`
+	} `yaml:"spec"`
+}
+
+type podDocument struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     podSpec    `yaml:"spec"`
+}
+
+type hpaDocument struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     struct {
+		MinReplicas    *int `yaml:"minReplicas"`
+		MaxReplicas    int  `yaml:"maxReplicas"`
+		ScaleTargetRef struct {
+			APIVersion string `yaml:"apiVersion"`
+			Kind       string `yaml:"kind"`
+			Name       string `yaml:"name"`
+		} `yaml:"scaleTargetRef"`
 	} `yaml:"spec"`
 }
 
@@ -473,10 +667,49 @@ func readDocumentSources(paths []string) ([]documentSource, error) {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		for _, document := range documents {
-			sources = append(sources, documentSource{path: path, node: document})
+			expandDocument(path, document, &sources)
 		}
 	}
 	return sources, nil
+}
+
+// expandDocument flattens kind: List documents recursively so their items are
+// treated like ordinary manifests, including nested Lists.
+func expandDocument(path string, document *yaml.Node, sources *[]documentSource) {
+	root := documentRoot(document)
+	if root == nil {
+		return
+	}
+	if yamlScalar(root, "kind") == "List" {
+		items := yamlMappingValue(root, "items")
+		if items != nil && items.Kind == yaml.SequenceNode {
+			for _, item := range items.Content {
+				expandDocument(path, item, sources)
+			}
+		}
+		return
+	}
+	*sources = append(*sources, documentSource{path: path, node: document})
+}
+
+func yamlMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func yamlScalar(node *yaml.Node, key string) string {
+	value := yamlMappingValue(node, key)
+	if value == nil || value.Kind != yaml.ScalarNode {
+		return ""
+	}
+	return value.Value
 }
 
 func readDocuments(path string) ([]*yaml.Node, error) {

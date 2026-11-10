@@ -372,3 +372,15 @@ func TestToolRejectsUnknownFormat(t *testing.T) {
 		t.Errorf("error = %q, want unknown format message", text)
 	}
 }
+
+func TestResolveMissingPathExplainsBrokenLink(t *testing.T) {
+	workspace := Workspace{Root: t.TempDir()}
+	_, err := workspace.resolve("missing.yaml")
+	if err == nil {
+		t.Fatal("resolve() = nil, want an error")
+	}
+	if !strings.Contains(err.Error(), "cannot be resolved inside the workspace") ||
+		!strings.Contains(err.Error(), "broken symbolic link") {
+		t.Fatalf("resolve() = %q", err)
+	}
+}

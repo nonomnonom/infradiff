@@ -216,3 +216,128 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(m.Run())
 }
+
+func TestParseDirMergesOverride(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	write("compose.yaml", `
+services:
+  api:
+    image: shop/api:1
+    depends_on:
+      - db
+  db:
+    image: postgres:16
+`)
+	write("compose.override.yaml", `
+services:
+  api:
+    image: shop/api:2
+    ports:
+      - "8080:8080"
+`)
+
+	graph, err := New().ParseDir(dir)
+	if err != nil {
+		t.Fatalf("ParseDir: %v", err)
+	}
+	api, ok := graph.Node("compose:service:api")
+	if !ok {
+		t.Fatal("api is missing")
+	}
+	if api.Metadata["image"] != "shop/api:2" {
+		t.Fatalf("image = %q, want override image", api.Metadata["image"])
+	}
+	if api.Metadata["ports"] != "8080:8080" {
+		t.Fatalf("ports = %q", api.Metadata["ports"])
+	}
+	if api.Source.File != filepath.Join(dir, "compose.override.yaml") {
+		t.Fatalf("source = %q", api.Source.File)
+	}
+}
+
+func TestParseExtendsProfilesAndEnvFile(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	write(".env", "DB_PASSWORD=super-secret\n")
+	write("compose.yaml", `
+services:
+  base:
+    image: postgres:16
+    environment:
+      DB_USER: shop
+    env_file: .env
+  app:
+    extends:
+      service: base
+    ports:
+      - "5432:5432"
+  debug:
+    image: shop/debug:1
+    profiles: [debug]
+`)
+
+	graph, err := New().ParseDir(dir)
+	if err != nil {
+		t.Fatalf("ParseDir: %v", err)
+	}
+	app, ok := graph.Node("compose:service:app")
+	if !ok {
+		t.Fatalf("app is missing: %+v", graph.Nodes)
+	}
+	if app.Type != model.NodeDatabase || app.Metadata["image"] != "postgres:16" {
+		t.Fatalf("app = %+v", app)
+	}
+	if !strings.Contains(app.Metadata["environment"], "DB_PASSWORD") ||
+		!strings.Contains(app.Metadata["environment"], "DB_USER") {
+		t.Fatalf("environment = %q", app.Metadata["environment"])
+	}
+	if strings.Contains(app.Metadata["environment"], "super-secret") {
+		t.Fatal("env_file value leaked")
+	}
+	if _, ok := graph.Node("compose:service:debug"); ok {
+		t.Fatal("profile service should be inactive by default")
+	}
+}
+
+func TestParseExtendsExternalFile(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	write("base.yml", "services:\n  base:\n    image: postgres:16\n")
+	write("compose.yaml", `
+services:
+  app:
+    extends:
+      file: base.yml
+      service: base
+    ports:
+      - "5432:5432"
+`)
+
+	graph, err := New().ParseDir(dir)
+	if err != nil {
+		t.Fatalf("ParseDir: %v", err)
+	}
+	if _, ok := graph.Node("compose:service:base"); ok {
+		t.Fatal("extends-only file must not become a project service")
+	}
+	app, ok := graph.Node("compose:service:app")
+	if !ok || app.Metadata["image"] != "postgres:16" {
+		t.Fatalf("app = %+v", app)
+	}
+}

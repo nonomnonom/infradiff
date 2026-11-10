@@ -3,9 +3,9 @@
 See what your infrastructure change actually does, as a diagram.
 
 infradiff reads Docker Compose, Terraform, and Kubernetes into one graph,
-renders it as Mermaid, JSON, or a self-contained HTML page, and shows exactly
-what changed between two versions. It runs entirely offline and never prints
-secret values.
+renders it as Mermaid, JSON, or a self-contained HTML page, and shows what
+changed between two versions. It runs entirely offline and never prints secret
+values.
 
 ```bash
 infradiff generate examples/compose
@@ -60,6 +60,9 @@ infradiff generate examples/terraform -f json -o graph.json
 # Self-contained HTML with pan and zoom
 infradiff generate examples/kubernetes -f html -o diagram.html
 
+# Large graph: keep two edges around a node and hide unrelated types
+infradiff generate deploy/ --focus api --depth 2 --hide other,storage
+
 # Compare two directories or files
 infradiff diff old/ new/
 
@@ -70,21 +73,31 @@ infradiff diff --git HEAD deploy/
 infradiff generate deploy/ --watch -o diagram.html
 ```
 
-The input can be a file or a directory. Compose is parsed per file; Terraform
-and Kubernetes are parsed per directory because their files reference each
-other. Saved Terraform plan JSON is a single-file input.
+The input can be a file or a directory. Compose files in one directory are
+merged using base/override precedence before parsing. Terraform is parsed as a
+module tree, so local `module` calls and their outputs connect to the root
+module. Kubernetes manifests in one directory are parsed together because
+references span files. Saved Terraform plan JSON is a single-file input.
 
 ## What is parsed
 
 | Input | Files | Graph content |
 | --- | --- | --- |
-| Docker Compose | `compose.yaml`, `docker-compose.yml`, or YAML with a `services` mapping | Services, databases, caches, queues, volumes, networks, published ports, `depends_on`, and environment names. |
-| Terraform | `.tf` files in one directory | Resources such as instances, databases, buckets, load balancers, networks, and security groups; references become edges. |
+| Docker Compose | `compose.yaml`, `docker-compose.yml`, overrides, or YAML with a `services` mapping | Services, databases, caches, queues, volumes, networks, published ports, `depends_on`, `extends`, environment and `env_file` names. Services with a non-empty `profiles` list are inactive by default. |
+| Terraform | `.tf` files and local `module` sources | Resources and data sources, local module trees with qualified IDs and groups, module-output references, tags hashes, CIDR blocks, and `count`/`for_each` metadata. Remote modules are not fetched. |
 | Terraform plan | Saved plan JSON | Planned resources, their actions, and references. |
-| Kubernetes | Multi-document YAML or JSON in one directory | Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, Services, Ingresses, ConfigMaps, Secrets, PVCs, and namespaces; selectors, ingress backends, and config/secret references become edges. |
+| Kubernetes | Multi-document YAML or JSON in one directory | Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs, Pods, Services, Ingresses, ConfigMaps, Secrets, PVCs, ServiceAccounts, HPAs, PDBs, NetworkPolicies, Namespaces, CRDs, and custom resources; `kind: List` is expanded. Selectors, ingress backends, HPA targets, and config/secret references become edges. |
 
 Node types are inferred from the image, resource type, or Kubernetes kind.
-Unknown resources are kept as `other` instead of being dropped.
+Unknown resources are kept as `other` instead of being dropped; custom resources
+without an explicit namespace stay at the top level rather than being assigned
+to a namespace that was never declared.
+
+## Not supported
+
+infradiff does not invoke Helm or Kustomize (render manifests first), read live
+cloud state or drift, parse Pulumi, CloudFormation, or Bicep, fetch remote
+Terraform modules, or emit SVG, PNG, D2, PlantUML, or Infracost output.
 
 ## Output formats
 
@@ -100,20 +113,25 @@ so moving a checkout does not make everything look changed.
 
 ## Diff
 
-`infradiff diff` marks nodes and edges as `added`, `removed`, `changed`, or
-`unchanged`, then renders the result with the same formats. Attributes that
-count as a change are name, type, group, and metadata; moving a node to another
-line is not a change. A pair of nodes keeps one edge, with the most specific
-kind (`routes_to` > `reference` > `depends_on` > `port` > `volume` >
-`network`).
+`infradiff diff` marks nodes, edges, and groups as `added`, `removed`,
+`changed`, or `unchanged`, then renders the result with the same formats.
+Attributes that count as a change are name, type, group, and metadata; moving a
+node to another line is not a change. A removed node and an added node with the
+same type and metadata are reported as one rename. A pair of nodes keeps
+one edge, with the most specific kind (`routes_to` > `reference` > `depends_on`
+> `port` > `volume` > `network`).
 
-`--fail-on-change` exits with status 1 when anything changed, which makes it
-usable as a CI gate. The rendered output is still written first.
+Diff output also prints risk warnings for public CIDR ranges, published data
+store ports, publicly accessible databases, and removed data stores.
+
+`--fail-on-change` exits with status 1 when a node, edge, or group changed,
+which makes it usable as a CI gate. The rendered output is still written first.
 
 ## Commands
 
 ```
 infradiff generate <path> [-f mermaid|json|html] [-o file] [--watch]
+                    [--focus node] [--depth n] [--hide type,id,name]
 infradiff diff <old> <new> [-f mermaid|json|html] [-o file] [--fail-on-change]
 infradiff diff --git <ref> [path] [-f ...] [-o file] [--fail-on-change]
 infradiff mcp [workspace]

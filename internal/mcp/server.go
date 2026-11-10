@@ -92,7 +92,7 @@ func (w Workspace) resolve(input string) (string, error) {
 	}
 	resolved, err := filepath.EvalSymlinks(absolute)
 	if err != nil {
-		return "", fmt.Errorf("path %q does not exist inside the workspace: %w", input, err)
+		return "", fmt.Errorf("path %q cannot be resolved inside the workspace (missing file, broken symbolic link, or broken directory junction): %w", input, err)
 	}
 	// Check again after resolving links so a link inside the workspace cannot
 	// point at a file outside it.

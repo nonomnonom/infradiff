@@ -77,7 +77,8 @@ pair keeps its endpoints but changes kind.
 ```
 
 `kind` is one of `project` (Compose), `namespace` (Kubernetes), or `module`
-(Terraform).
+(Terraform). `metadata` is optional and currently carries Terraform module
+`count` or `for_each` information.
 
 ## summary
 
@@ -90,7 +91,8 @@ pair keeps its endpoints but changes kind.
 ```
 
 `text` is the plain-text line printed by the diff command. Counts cover nodes
-and edges separately; `text` totals them.
+and edges separately; `text` totals nodes, edges, and changed groups. Group
+statuses remain in the top-level `groups` array.
 
 ## Determinism
 
@@ -177,6 +179,7 @@ slash-separated, and no timestamps or absolute paths are included.
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "kind": { "type": "string", "enum": ["project", "namespace", "module"] },
+        "metadata": { "type": "object", "additionalProperties": { "type": "string" } },
         "status": { "$ref": "#/$defs/status" }
       }
     },

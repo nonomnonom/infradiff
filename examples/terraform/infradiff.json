@@ -30,6 +30,7 @@
       },
       "metadata": {
         "ami": "ami-0123456789abcdef0",
+        "instance_type": "t3.micro",
         "resource_type": "aws_instance"
       },
       "status": "unchanged"

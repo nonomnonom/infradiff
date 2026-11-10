@@ -85,6 +85,8 @@ func (r *Registry) parseDir(root string) (*model.Graph, error) {
 		return nil, err
 	}
 
+	tfDirs := terraformDirs(files)
+
 	graphs := make([]*model.Graph, 0, len(files))
 	handledDirs := make(map[string]bool)
 	for _, file := range files {
@@ -96,6 +98,9 @@ func (r *Registry) parseDir(root string) (*model.Graph, error) {
 		var graph *model.Graph
 		if dirParser, ok := p.(DirParser); ok && usesDirectoryGrouping(file) {
 			dir := filepath.Dir(file)
+			if p.Name() == "terraform" {
+				dir = terraformRoot(root, dir, tfDirs)
+			}
 			key := p.Name() + "\x00" + dir
 			if handledDirs[key] {
 				continue
@@ -120,6 +125,41 @@ func (r *Registry) parseDir(root string) (*model.Graph, error) {
 		return nil, err
 	}
 	return finish(merged)
+}
+
+// terraformDirs returns every directory below root that contains .tf files.
+func terraformDirs(files []string) map[string]bool {
+	dirs := make(map[string]bool)
+	for _, file := range files {
+		if strings.EqualFold(filepath.Ext(file), ".tf") {
+			dirs[filepath.Dir(file)] = true
+		}
+	}
+	return dirs
+}
+
+// terraformRoot returns the highest ancestor of dir that contains .tf files.
+// Intermediate directories without Terraform files are traversed so modules
+// nested under paths such as modules/network remain part of the root. The
+// Terraform parser parses local module calls recursively, so child module
+// directories must not be parsed a second time.
+func terraformRoot(scanRoot, dir string, tfDirs map[string]bool) string {
+	root := dir
+	for {
+		parent := filepath.Dir(dir)
+		if parent == dir || !withinDir(scanRoot, parent) {
+			return root
+		}
+		if tfDirs[parent] {
+			root = parent
+		}
+		dir = parent
+	}
+}
+
+func withinDir(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func finish(graph *model.Graph) (*model.Graph, error) {

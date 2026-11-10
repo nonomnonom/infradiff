@@ -2,13 +2,12 @@ package mcp
 
 import (
 	"context"
-	"sort"
-	"strings"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/nonomnonom/infradiff/internal/model"
 	"github.com/nonomnonom/infradiff/internal/parser"
+	"github.com/nonomnonom/infradiff/internal/risk"
 )
 
 // Explain is the structured result of the explain_graph tool.
@@ -39,11 +38,7 @@ type Dependency struct {
 }
 
 // Risk is a notable configuration issue found in the graph.
-type Risk struct {
-	Severity string `json:"severity"`
-	Node     string `json:"node"`
-	Message  string `json:"message"`
-}
+type Risk = risk.Risk
 
 type explainArgs struct {
 	Path string `json:"path" jsonschema:"file or directory to parse, relative to the MCP workspace root"`
@@ -93,73 +88,6 @@ func (w Workspace) ExplainGraph(_ context.Context, _ *sdk.CallToolRequest, args 
 			Kind: string(edge.Kind),
 		})
 	}
-	explain.Risks = risks(graph)
+	explain.Risks = risk.Graph(graph)
 	return nil, explain, nil
-}
-
-var severityRank = map[string]int{"high": 0, "medium": 1, "low": 2}
-
-func risks(graph *model.Graph) []Risk {
-	out := []Risk{}
-	for _, node := range graph.Nodes {
-		metadata := node.Metadata
-		switch node.Type {
-		case model.NodeDatabase, model.NodeCache, model.NodeQueue:
-			if metadata["ports"] != "" {
-				out = append(out, Risk{
-					Severity: "high",
-					Node:     node.ID,
-					Message:  "publishes host ports; keep data stores on a private network",
-				})
-			}
-			if strings.EqualFold(metadata["publicly_accessible"], "true") {
-				out = append(out, Risk{
-					Severity: "high",
-					Node:     node.ID,
-					Message:  "is publicly accessible; restrict access to the private network",
-				})
-			}
-		case model.NodeLoadBalancer:
-			if kind := metadata["type"]; kind == "LoadBalancer" || kind == "NodePort" {
-				out = append(out, Risk{
-					Severity: "medium",
-					Node:     node.ID,
-					Message:  "is reachable from outside the cluster",
-				})
-			}
-		}
-		if image, ok := metadata["image"]; ok && !imagePinned(image) {
-			out = append(out, Risk{
-				Severity: "medium",
-				Node:     node.ID,
-				Message:  "uses an unpinned image tag; pin a version or digest",
-			})
-		}
-	}
-
-	sort.Slice(out, func(i, j int) bool {
-		if severityRank[out[i].Severity] != severityRank[out[j].Severity] {
-			return severityRank[out[i].Severity] < severityRank[out[j].Severity]
-		}
-		if out[i].Node != out[j].Node {
-			return out[i].Node < out[j].Node
-		}
-		return out[i].Message < out[j].Message
-	})
-	return out
-}
-
-// imagePinned reports whether an image reference names a version or digest
-// rather than floating on latest.
-func imagePinned(image string) bool {
-	if strings.Contains(image, "@") {
-		return true
-	}
-	lastSlash := strings.LastIndex(image, "/")
-	lastColon := strings.LastIndex(image, ":")
-	if lastColon <= lastSlash {
-		return false
-	}
-	tag := image[lastColon+1:]
-	return tag != "" && tag != "latest"
 }

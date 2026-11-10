@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -132,7 +134,6 @@ func TestParseErrors(t *testing.T) {
 		want string
 	}{
 		{"invalid yaml", fixDir + "/invalid-yaml.yaml", "kubernetes:"},
-		{"unsupported kinds", fixDir + "/unsupported-kind.yaml", "no supported resources found"},
 		{"missing name", fixDir + "/missing-name.yaml", "has no metadata.name"},
 		{"duplicate object", fixDir + "/duplicate.yaml", "is already defined"},
 	}
@@ -147,6 +148,20 @@ func TestParseErrors(t *testing.T) {
 				t.Fatalf("Parse() = %q, want substring %q", err.Error(), tt.want)
 			}
 		})
+	}
+}
+
+func TestParseUnknownKindKept(t *testing.T) {
+	graph, err := New().Parse(fixDir + "/unsupported-kind.yaml")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	node, ok := graph.Node("k8s:widget:not-supported")
+	if !ok {
+		t.Fatalf("unknown kind was dropped: %+v", graph.Nodes)
+	}
+	if node.Type != model.NodeOther || node.Metadata["kind"] != "Widget" {
+		t.Fatalf("unknown node = %+v", node)
 	}
 }
 
@@ -205,4 +220,113 @@ func hasEdge(graph *model.Graph, from, to string) bool {
 		}
 	}
 	return false
+}
+
+func TestParseListAndAdditionalKinds(t *testing.T) {
+	dir := t.TempDir()
+	body := `
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: api
+      namespace: shop
+      labels:
+        app: api
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: api
+      template:
+        metadata:
+          labels:
+            app: api
+        spec:
+          containers:
+            - name: api
+              image: shop/api:2
+  - apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: api
+      namespace: shop
+    spec:
+      minReplicas: 1
+      maxReplicas: 5
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: Deployment
+        name: api
+  - apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: cleanup
+      namespace: shop
+    spec:
+      schedule: "0 * * * *"
+      jobTemplate:
+        spec:
+          template:
+            metadata:
+              labels:
+                app: cleanup
+            spec:
+              containers:
+                - name: cleanup
+                  image: shop/cleanup:1
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: runner
+      namespace: shop
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: api
+      namespace: shop
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: api
+      namespace: shop
+  - apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      name: widgets.example.com
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: shop
+`
+	if err := os.WriteFile(filepath.Join(dir, "all.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	graph, err := New().ParseDir(dir)
+	if err != nil {
+		t.Fatalf("ParseDir: %v", err)
+	}
+	if len(graph.Nodes) != 8 {
+		t.Fatalf("node count = %d, want 8: %+v", len(graph.Nodes), graph.Nodes)
+	}
+	if !hasEdge(graph, "k8s:horizontalpodautoscaler:shop/api", "k8s:deployment:shop/api") {
+		t.Fatal("HPA target edge is missing")
+	}
+	cron, ok := graph.Node("k8s:cronjob:shop/cleanup")
+	if !ok || cron.Metadata["schedule"] != "0 * * * *" || cron.Metadata["images"] != "shop/cleanup:1" {
+		t.Fatalf("cronjob = %+v", cron)
+	}
+	crd, ok := graph.Node("k8s:customresourcedefinition:widgets.example.com")
+	if !ok || crd.Group != "" {
+		t.Fatalf("CRD = %+v, want cluster-scoped with no phantom namespace", crd)
+	}
+	if _, ok := graph.Node("k8s:namespace:shop"); !ok {
+		t.Fatal("Namespace node is missing")
+	}
+	if len(graph.Groups) != 1 || graph.Groups[0].ID != "group:namespace:shop" {
+		t.Fatalf("groups = %+v, want only the real shop namespace", graph.Groups)
+	}
 }

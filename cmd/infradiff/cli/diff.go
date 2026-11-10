@@ -13,6 +13,7 @@ import (
 	"github.com/nonomnonom/infradiff/internal/model"
 	"github.com/nonomnonom/infradiff/internal/parser"
 	"github.com/nonomnonom/infradiff/internal/render"
+	"github.com/nonomnonom/infradiff/internal/risk"
 	"github.com/spf13/cobra"
 )
 
@@ -55,6 +56,10 @@ func newDiffCmd() *cobra.Command {
 			printLine(cmd.ErrOrStderr(), result.Summary.Text)
 			for _, line := range diff.ChangeLines(result) {
 				printLine(cmd.ErrOrStderr(), line)
+			}
+			for _, item := range risk.Changes(result) {
+				printLine(cmd.ErrOrStderr(), fmt.Sprintf("risk: %s %s: %s",
+					item.Severity, item.Node, item.Message))
 			}
 
 			if failOnChange && hasChanges(result) {
@@ -166,8 +171,16 @@ func canonicalPath(path string) string {
 
 func hasChanges(graph *model.Graph) bool {
 	counts := graph.Summary
-	return counts.Nodes.Added+counts.Nodes.Removed+counts.Nodes.Changed+
-		counts.Edges.Added+counts.Edges.Removed+counts.Edges.Changed > 0
+	if counts.Nodes.Added+counts.Nodes.Removed+counts.Nodes.Changed+
+		counts.Edges.Added+counts.Edges.Removed+counts.Edges.Changed > 0 {
+		return true
+	}
+	for _, group := range graph.Groups {
+		if group.Status != model.StatusUnchanged {
+			return true
+		}
+	}
+	return false
 }
 
 func printLine(writer io.Writer, text string) {
